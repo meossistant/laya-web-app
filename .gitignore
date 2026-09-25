@@ -1,0 +1,31 @@
+# Environments
+.venv/
+env/
+venv/
+ENV/
+.env
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Model Weights and Large Binaries (Download via download_models.py or download_models.sh)
+models/
+openvino_models
+*.safetensors
+*.bin
+*.onnx
+*.onnx.data
+*.tar.gz
+*.zip
+
+# Logs and runtime data
+*.log
+.cache/
+
+# IDE & OS
+.DS_Store
+.idea/
+.vscode/

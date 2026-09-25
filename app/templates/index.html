@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laya — System 1 Decision Engine (Jev-Style)</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <meta name="description" content="Non-autoregressive decision model interface for Laya, featuring Jev-style decisions, calibrated probabilities, and full offline air-gapped support.">
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+        <div class="nav-brand">
+            <div class="logo-badge">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                    <polyline points="2 17 12 22 22 17"></polyline>
+                    <polyline points="2 12 12 17 22 12"></polyline>
+                </svg>
+            </div>
+            <div class="brand-text">
+                <span class="brand-name">LAYA</span>
+                <span class="brand-sub">SYSTEM 1 DECISION ENGINE</span>
+            </div>
+        </div>
+
+        <div class="nav-badges">
+            <span class="badge badge-pulse">
+                <span class="pulse-dot"></span>
+                Non-Autoregressive
+            </span>
+            <span class="badge badge-speed" id="latencyBadge" title="Thời gian chạy 1 forward pass">
+                ⚡ ~33ms Forward Pass
+            </span>
+            <span class="badge badge-source" id="sourceBadge" title="Nguồn weights đang sử dụng">
+                🔍 Đang kiểm tra...
+            </span>
+            <span class="badge badge-hw" id="hwBadge">
+                💻 Hardware: CPU
+            </span>
+        </div>
+
+        <div class="nav-actions">
+            <button class="btn btn-secondary btn-sm" id="btnSettings" title="Cấu hình đường dẫn local & Offline">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                Local / Offline
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btnHelp" title="Hướng dẫn tải model & Môi trường Offline">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                README Offline
+            </button>
+            <button class="btn btn-icon btn-sm" id="btnTheme" title="Chuyển chế độ Sáng / Tối">
+                <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Sub-header: Presets & Concept Bar -->
+    <div class="concept-bar">
+        <div class="concept-title">
+            <span class="highlight">Decisions, Not Text</span> — Ra quyết định có cấu trúc với xác suất chuẩn hóa toán học (RLCD), không sinh văn bản, không ảo giác, độ trễ cực thấp (~33ms).
+        </div>
+        <div class="presets-container" id="presetsContainer">
+            <span class="presets-label">Mẫu tác vụ (Jev Presets):</span>
+            <div class="presets-pills" id="presetsList">
+                <!-- Injected via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Workspace Split Container -->
+    <main class="main-container">
+        <!-- LEFT PANEL: State, Questions & Controls -->
+        <div class="panel panel-left">
+            <!-- STATE INPUT SECTION -->
+            <div class="section-card">
+                <div class="section-header">
+                    <div class="section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        <span>1. Input State (Dữ liệu đầu vào)</span>
+                    </div>
+                    <div class="tab-group">
+                        <button class="tab-btn active" data-state-mode="json" id="btnStateJson">JSON</button>
+                        <button class="tab-btn" data-state-mode="text" id="btnStateText">Văn bản thuần</button>
+                    </div>
+                </div>
+                <div class="input-container">
+                    <textarea id="stateInput" class="code-editor" spellcheck="false" placeholder="Nhập văn bản, email, tài liệu hoặc JSON object..."></textarea>
+                    <div class="input-footer">
+                        <span id="stateStats" class="stat-text">0 ký tự</span>
+                        <button class="btn btn-link btn-xs" id="btnFormatJson">Format JSON</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QUESTIONS SECTION -->
+            <div class="section-card">
+                <div class="section-header">
+                    <div class="section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                        <span>2. Questions Schema (Các quyết định cần đưa ra)</span>
+                    </div>
+                    <div class="tab-group">
+                        <button class="tab-btn active" id="btnModeVisual">Visual Builder</button>
+                        <button class="tab-btn" id="btnModeRawJson">Raw JSON</button>
+                    </div>
+                </div>
+
+                <!-- Visual Question Builder -->
+                <div id="visualBuilderView" class="builder-view">
+                    <div class="questions-list" id="questionsList">
+                        <!-- Questions Cards Rendered Dynamically -->
+                    </div>
+                    <div class="builder-actions">
+                        <button class="btn btn-secondary btn-sm" id="btnAddQuestion">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Thêm câu hỏi mới
+                        </button>
+                        <span class="builder-hint">Hỗ trợ 3 kiểu chuẩn: Choice (phân loại), Score (chấm điểm theo thang), Noul (xác suất Đúng/Sai)</span>
+                    </div>
+                </div>
+
+                <!-- Raw JSON Schema View -->
+                <div id="rawJsonView" class="builder-view hidden">
+                    <textarea id="rawQuestionsInput" class="code-editor" spellcheck="false" placeholder="Nhập questions dictionary định dạng JSON..."></textarea>
+                    <div class="input-footer">
+                        <span id="rawJsonStatus" class="stat-text">JSON hợp lệ</span>
+                        <button class="btn btn-link btn-xs" id="btnSyncVisual">Cập nhật sang Visual Builder</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EXECUTION & MODEL CONTROLS -->
+            <div class="section-card control-card">
+                <div class="control-grid">
+                    <div class="control-field">
+                        <label for="modelSelect">Mô hình Laya:</label>
+                        <select id="modelSelect" class="form-select">
+                            <option value="auto" selected>⚡ Auto-Router (Tự động điều phối theo ngôn ngữ/tác vụ)</option>
+                            <option value="english">Root / English (ModernBERT-421M, context 512)</option>
+                            <option value="multilingual">Multilingual (mmBERT-base, 100+ ngôn ngữ, context tới 8k)</option>
+                            <option value="typed-decisions">Typed-Decisions (Fine-tuned chuyên sâu cho 4 workflows)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-field">
+                        <label for="backendSelect">Inference Backend:</label>
+                        <select id="backendSelect" class="form-select">
+                            <option value="pytorch" selected>🔥 PyTorch Engine</option>
+                            <option value="openvino">⚡ Intel OpenVINO (AMX / VNNI)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-field" id="precisionField">
+                        <label for="precisionSelect">Mức lượng tử hóa (Quantization):</label>
+                        <select id="precisionSelect" class="form-select">
+                            <option value="int8" selected>INT8 (75% nhẹ hơn, AMX Ultra-Fast)</option>
+                            <option value="fp16">FP16 (50% nhẹ hơn, Cân bằng)</option>
+                            <option value="fp32">FP32 (Nguyên bản)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-field">
+                        <label for="contextLenSelect">Giới hạn context (max_len):</label>
+                        <select id="contextLenSelect" class="form-select">
+                            <option value="" selected>Mặc định của checkpoint (512 / 1024)</option>
+                            <option value="2048">2,048 tokens</option>
+                            <option value="4096">4,096 tokens</option>
+                            <option value="8192">8,192 tokens (Văn bản dài - Multilingual)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="offline-toggle-bar">
+                    <label class="checkbox-label" title="Buộc chỉ dùng model tải về máy, hoàn toàn ngắt kết nối internet">
+                        <input type="checkbox" id="chkForceOffline">
+                        <span>🔒 Bắt buộc chế độ Offline (Air-Gapped Mode)</span>
+                    </label>
+                    <span class="current-path-hint" id="currentPathHint" title="Đường dẫn local hiện tại">
+                        Local path: <code id="activePathText">./models/laya</code>
+                    </span>
+                </div>
+
+                <div class="action-bar">
+                    <button class="btn btn-primary btn-large" id="btnExecute">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                        <span>THỰC THI QUYẾT ĐỊNH (SINGLE PASS)</span>
+                        <kbd class="kbd-shortcut">Ctrl+Enter</kbd>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: Decision Dashboard & Metrics (Jev Style) -->
+        <div class="panel panel-right">
+            <!-- PERFORMANCE STATUS BAR -->
+            <div class="metrics-bar" id="metricsBar">
+                <div class="metric-item">
+                    <span class="metric-label">Độ trễ suy luận</span>
+                    <span class="metric-value highlight-cyan" id="metricLatency">—</span>
+                </div>
+                <div class="metric-divider"></div>
+                <div class="metric-item">
+                    <span class="metric-label">Mô hình thực thi</span>
+                    <span class="metric-value" id="metricModel">—</span>
+                </div>
+                <div class="metric-divider"></div>
+                <div class="metric-item">
+                    <span class="metric-label">Số quyết định</span>
+                    <span class="metric-value" id="metricCount">—</span>
+                </div>
+                <div class="metric-divider"></div>
+                <div class="metric-item">
+                    <span class="metric-label">Chế độ weights</span>
+                    <span class="metric-value" id="metricWeights">—</span>
+                </div>
+            </div>
+
+            <!-- DECISION RESULTS CARDS -->
+            <div class="results-container" id="resultsContainer">
+                <!-- Empty State before execution -->
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                            <polyline points="2 17 12 22 22 17"></polyline>
+                            <polyline points="2 12 12 17 22 12"></polyline>
+                        </svg>
+                    </div>
+                    <h3>Sẵn sàng đưa ra quyết định</h3>
+                    <p>Chọn một mẫu tác vụ (preset) ở trên hoặc nhập State & Câu hỏi của bạn, sau đó nhấn <strong>THỰC THI QUYẾT ĐỊNH</strong> để mô hình Laya tính toán xác suất chuẩn hóa trong 1 lượt chạy duy nhất (~33ms).</p>
+                    <div class="quick-tips">
+                        <div class="tip-item">⚡ <strong>Choice:</strong> Trả về nhãn tối ưu kèm phân bố xác suất mọi lựa chọn.</div>
+                        <div class="tip-item">🎯 <strong>Score:</strong> Điểm kỳ vọng theo thước đo thang bậc (rubric).</div>
+                        <div class="tip-item">🔍 <strong>Noul:</strong> Xác suất điều kiện là Đúng (P(True)).</div>
+                    </div>
+                </div>
+
+                <!-- Decision Cards list -->
+                <div class="decisions-list hidden" id="decisionsList">
+                    <!-- Cards will be populated dynamically -->
+                </div>
+            </div>
+
+            <!-- CODE SNIPPET / INTEGRATION DRAWER -->
+            <div class="code-export-card">
+                <div class="section-header">
+                    <div class="section-title">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="16 18 22 12 16 6"></polyline>
+                            <polyline points="8 6 2 12 8 18"></polyline>
+                        </svg>
+                        <span>Nhúng vào Backend Code (Integration Snippet)</span>
+                    </div>
+                    <div class="tab-group">
+                        <button class="tab-btn active" id="tabSnippetPy">Python SDK</button>
+                        <button class="tab-btn" id="tabSnippetCurl">cURL API</button>
+                        <button class="tab-btn" id="tabSnippetJson">Raw Response</button>
+                    </div>
+                </div>
+                <div class="snippet-content">
+                    <pre><code id="snippetCode">// Nhấn thực thi quyết định để sinh mã nguồn nhúng tương ứng...</code></pre>
+                    <button class="btn btn-secondary btn-xs copy-btn" id="btnCopySnippet">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Copy
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- SETTINGS & LOCAL PATH MODAL -->
+    <div class="modal-overlay hidden" id="settingsModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Cấu hình Local Model & Môi trường Offline</h3>
+                <button class="modal-close" id="btnCloseSettings">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="inputLocalPath">Đường dẫn thư mục chứa model trên máy Local:</label>
+                    <div class="input-with-button">
+                        <input type="text" id="inputLocalPath" class="form-input" placeholder="/absolute/path/to/models/laya hoặc ./models/laya">
+                        <button class="btn btn-secondary" id="btnValidateLocalPath">Kiểm tra đường dẫn</button>
+                    </div>
+                    <small class="form-help">Thư mục chứa các tệp: <code>model.safetensors</code>, <code>rl_agent_config.json</code>, thư mục <code>tokenizer</code>, <code>encoder</code>.</small>
+                </div>
+
+                <!-- Path Inspection Results -->
+                <div class="path-status-card" id="pathStatusCard">
+                    <h4>Trạng thái kiểm tra tệp local:</h4>
+                    <div class="status-rows">
+                        <div class="status-row">
+                            <span>Thư mục tồn tại:</span>
+                            <span id="stFolderExists" class="status-badge badge-pending">Chưa kiểm tra</span>
+                        </div>
+                        <div class="status-row">
+                            <span>Root Checkpoint (English):</span>
+                            <span id="stCkptEnglish" class="status-badge badge-pending">Chưa kiểm tra</span>
+                        </div>
+                        <div class="status-row">
+                            <span>Multilingual Checkpoint:</span>
+                            <span id="stCkptMulti" class="status-badge badge-pending">Chưa kiểm tra</span>
+                        </div>
+                        <div class="status-row">
+                            <span>Typed-Decisions Checkpoint:</span>
+                            <span id="stCkptTyped" class="status-badge badge-pending">Chưa kiểm tra</span>
+                        </div>
+                        <div class="status-row">
+                            <span>Tổng dung lượng trên ổ cứng:</span>
+                            <span id="stTotalSize" class="status-text">—</span>
+                        </div>
+                    </div>
+                    <div class="missing-files-alert hidden" id="missingFilesAlert"></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="chkModalOffline">
+                        <strong>Bật cờ biến môi trường Offline (<code>HF_HUB_OFFLINE=1</code>)</strong>
+                    </label>
+                    <small class="form-help">Ngăn chặn hoàn toàn mọi kết nối ra ngoài internet tới huggingface.co, đảm bảo vận hành trong mạng nội bộ (air-gapped).</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnCancelSettings">Đóng</button>
+                <button class="btn btn-primary" id="btnSaveSettings">Lưu cấu hình</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OFFLINE GUIDE & README MODAL -->
+    <div class="modal-overlay hidden" id="helpModal">
+        <div class="modal-box modal-box-large">
+            <div class="modal-header">
+                <h3>📖 Hướng dẫn tải Model & Triển khai trong môi trường Offline</h3>
+                <button class="modal-close" id="btnCloseHelp">&times;</button>
+            </div>
+            <div class="modal-body markdown-body">
+                <h4>1. Tổng quan kiến trúc Offline của Laya</h4>
+                <p>Khác với các LLM tự hồi quy sinh văn bản (autoregressive), Laya là mô hình System 1 không sinh text mà trả về trực tiếp các quyết định (Choice, Score, Noul) với độ trễ ~33ms. Khi tải về local, Laya gồm 3 checkpoint:</p>
+                <ul>
+                    <li><code>convaiinnovations/laya</code> (Thư mục gốc): Model tiếng Anh (ModernBERT-large, 421M params, context 512).</li>
+                    <li><code>multilingual</code>: Model đa ngôn ngữ (mmBERT-base, 322M params, hỗ trợ tiếng Việt và 100+ ngôn ngữ, context tới 8192).</li>
+                    <li><code>typed-decisions</code>: Model chuyên sâu cho phân loại ticket, bảo mật, CS, agent traces (acc 0.766).</li>
+                </ul>
+
+                <h4>2. Cách tải toàn bộ model về local (trên máy có internet)</h4>
+                <p>Sử dụng script Python kèm theo đã được tối ưu:</p>
+                <pre><code># Tải tất cả 3 checkpoint về thư mục ./models/laya
+python download_models.py --output-dir ./models/laya --checkpoint all
+
+# Hoặc tải bằng bash script:
+bash download_models.sh ./models/laya
+
+# Hoặc dùng huggingface-cli:
+huggingface-cli download convaiinnovations/laya --local-dir ./models/laya --local-dir-use-symlinks False</code></pre>
+
+                <h4>3. Đóng gói và chuyển sang máy không có internet (Air-gapped)</h4>
+                <pre><code># Bước 1: Nén thư mục model trên máy có mạng
+tar -czvf laya_models_offline.tar.gz ./models/laya
+
+# Bước 2: Chép file laya_models_offline.tar.gz sang máy offline (USB/Ổ cứng di động/NFS)
+
+# Bước 3: Giải nén trên máy offline
+tar -xzvf laya_models_offline.tar.gz -C /opt/laya-web-app/</code></pre>
+
+                <h4>4. Khởi chạy Web App trong môi trường không có internet</h4>
+                <pre><code># Thiết lập các biến môi trường ngắt kết nối tuyệt đối
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+export LAYA_MODEL_PATH=/opt/laya-web-app/models/laya
+
+# Khởi chạy ứng dụng
+python -m app.main</code></pre>
+                <p>Giao diện web app sẽ tự động nhận diện weights tại thư mục local và chạy với 0 byte internet transfer!</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btnCloseHelpFooter">Đã hiểu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

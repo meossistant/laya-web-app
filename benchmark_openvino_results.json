@@ -1,0 +1,80 @@
+[
+  {
+    "model": "english",
+    "architecture": "ModernBERT-large (421M params, context 512)",
+    "hardware": "Intel(R) Xeon(R) Platinum 8481C (Sapphire Rapids with AMX)",
+    "sizes_mb": {
+      "fp32": 1608.7,
+      "fp16": 805.3,
+      "int8": 404.5
+    },
+    "latency_ms": {
+      "pytorch": 884.73,
+      "openvino_fp32": 165.81,
+      "openvino_fp16": 166.77,
+      "openvino_int8": 240.02
+    },
+    "speedup_vs_pytorch": {
+      "openvino_fp32": 5.33,
+      "openvino_fp16": 5.31,
+      "openvino_int8": 3.69
+    },
+    "size_reduction_pct": {
+      "fp16": 49.9,
+      "int8": 74.9
+    },
+    "decision_agreement": "100% exact match on discrete choice; continuous score difference < 0.01"
+  },
+  {
+    "model": "multilingual",
+    "architecture": "mmBERT-base (322M params, 100+ languages, context up to 8192)",
+    "hardware": "Intel(R) Xeon(R) Platinum 8481C (Sapphire Rapids with AMX)",
+    "sizes_mb": {
+      "fp32": 1229.3,
+      "fp16": 615.4,
+      "int8": 309.4
+    },
+    "latency_ms": {
+      "pytorch": 310.63,
+      "openvino_fp32": 66.02,
+      "openvino_fp16": 65.26,
+      "openvino_int8": 97.61
+    },
+    "speedup_vs_pytorch": {
+      "openvino_fp32": 4.70,
+      "openvino_fp16": 4.76,
+      "openvino_int8": 3.18
+    },
+    "size_reduction_pct": {
+      "fp16": 50.0,
+      "int8": 74.8
+    },
+    "decision_agreement": "100% exact match on discrete choice; probability difference < 0.015"
+  },
+  {
+    "model": "typed-decisions",
+    "architecture": "ModernBERT-large fine-tuned on benchmark workflows",
+    "hardware": "Intel(R) Xeon(R) Platinum 8481C (Sapphire Rapids with AMX)",
+    "sizes_mb": {
+      "fp32": 1608.7,
+      "fp16": 805.3,
+      "int8": 404.5
+    },
+    "latency_ms": {
+      "pytorch": 893.94,
+      "openvino_fp32": 166.38,
+      "openvino_fp16": 165.22,
+      "openvino_int8": 238.76
+    },
+    "speedup_vs_pytorch": {
+      "openvino_fp32": 5.37,
+      "openvino_fp16": 5.41,
+      "openvino_int8": 3.74
+    },
+    "size_reduction_pct": {
+      "fp16": 49.9,
+      "int8": 74.9
+    },
+    "decision_agreement": "100% exact match on discrete choice; continuous score difference < 0.012"
+  }
+]
