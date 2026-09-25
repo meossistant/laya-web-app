@@ -73,6 +73,22 @@ huggingface-cli download convaiinnovations/laya \
   --local-dir-use-symlinks False
 ```
 
+### Cách 4: Tải nhanh OpenVINO models từ Google Cloud Storage Bucket
+
+Các model OpenVINO đã export (FP32, FP16, INT8) và các file `.tar.gz` nén sẵn đã được lưu trữ tập trung tại bucket `gs://meolab-laya-models/`:
+
+```bash
+# Tải trọn bộ các gói nén INT8 siêu nhẹ:
+gcloud storage cp "gs://meolab-laya-models/*int8.tar.gz" ./models/openvino/
+
+# Hoặc tải gói Multilingual INT8 (300 MB):
+gcloud storage cp gs://meolab-laya-models/multilingual_int8.tar.gz ./models/openvino/
+cd ./models/openvino && tar -xzvf multilingual_int8.tar.gz
+
+# Hoặc tải toàn bộ thư mục OpenVINO (cả FP32, FP16, INT8):
+gcloud storage cp -r "gs://meolab-laya-models/*" ./models/openvino/
+```
+
 ### Cấu trúc thư mục sau khi tải về thành công:
 
 Thư mục `./models/laya` sẽ có cấu trúc như sau:
