@@ -1,0 +1,68 @@
+[project]
+name = "laya-web-app"
+version = "0.1.0"
+description = "Web application for Laya (Non-Autoregressive Decision Engine) with Jev-style UI, OpenVINO & PyTorch backends, and 100% offline air-gapped support"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "meossistant", email = "meossistant@gmail.com" }
+]
+keywords = [
+    "laya",
+    "decision-model",
+    "system-1",
+    "non-autoregressive",
+    "openvino",
+    "pytorch",
+    "fastapi",
+    "offline-ai",
+    "air-gapped"
+]
+dependencies = [
+    "laya>=0.3.20",
+    "torch>=2.0.0",
+    "transformers>=4.48.0",
+    "safetensors>=0.4.0",
+    "huggingface-hub>=0.20.0",
+    "numpy>=1.20.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.27.0",
+    "pydantic>=2.0.0",
+    "jinja2>=3.1.0",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+openvino = [
+    "openvino>=2024.0.0",
+    "nncf>=2.9.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "httpx>=0.27.0",
+]
+
+[project.scripts]
+laya-web = "app.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.uv]
+# CPU-only PyTorch index configuration: prevents downloading heavy CUDA wheels on CPU deployment servers
+find-links = [
+    "https://download.pytorch.org/whl/cpu",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }

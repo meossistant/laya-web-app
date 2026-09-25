@@ -36,6 +36,27 @@ Kho lưu trữ `convaiinnovations/laya` chứa 3 checkpoint chính:
 
 ---
 
+## ⚡ Quản lý Package với `uv` & `pyproject.toml` (Khuyên dùng)
+
+Dự án hỗ trợ chuẩn **`uv`** làm trình quản lý gói siêu tốc với cấu hình `pyproject.toml` định tuyến **CPU-only PyTorch** tự động (ngăn việc tải nhầm các gói CUDA nặng hơn 3GB trên các máy chủ CPU):
+
+```bash
+# 1. Cài đặt toàn bộ dependencies (CPU-only, cực nhẹ và nhanh):
+uv sync
+
+# 2. Cài đặt thêm OpenVINO & NNCF (tùy chọn, tối ưu cho Intel CPU):
+uv sync --extra openvino
+
+# 3. Khởi chạy Web App:
+./run.sh
+# Hoặc chạy trực tiếp với uv:
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+*(Nếu không sử dụng `uv`, bạn vẫn có thể dùng `pip install -r requirements.txt` bình thường).*
+
+---
+
 ## 🛠️ Hướng dẫn tải toàn bộ Model về Local (Máy có Internet)
 
 Để triển khai được trong môi trường không có internet, bạn cần tải model trước trên một máy có kết nối mạng. Dự án cung cấp sẵn các script tự động:

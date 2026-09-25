@@ -26,5 +26,10 @@ if [ "$HF_HUB_OFFLINE" = "1" ]; then
     export TRANSFORMERS_OFFLINE=1
 fi
 
-# Chạy FastAPI uvicorn
-exec python3 -m uvicorn app.main:app --host "$HOST" --port "$PORT"
+# Chạy với uv nếu có sẵn, ngược lại dùng python3 uvicorn
+if command -v uv &> /dev/null; then
+    echo "⚡ Sử dụng uv package manager để khởi chạy..."
+    exec uv run uvicorn app.main:app --host "$HOST" --port "$PORT"
+else
+    exec python3 -m uvicorn app.main:app --host "$HOST" --port "$PORT"
+fi
