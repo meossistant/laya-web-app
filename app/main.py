@@ -175,5 +175,5 @@ if __name__ == "__main__":
     import uvicorn
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
-    print(f"🚀 Starting Laya Decision Web App on http://{host}:{port}")
+    print(f"Starting Laya Decision Web App on http://{host}:{port}")
     uvicorn.run("app.main:app", host=host, port=port, reload=True)

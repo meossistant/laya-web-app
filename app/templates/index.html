@@ -3,61 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laya — System 1 Decision Engine (Jev-Style)</title>
+    <title>Laya — System 1 Decision Engine</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <meta name="description" content="Non-autoregressive decision model interface for Laya, featuring Jev-style decisions, calibrated probabilities, and full offline air-gapped support.">
+    <meta name="description" content="Minimal, high-precision decision runtime for Laya non-autoregressive decision models with OpenVINO and PyTorch CPU backends.">
 </head>
 <body>
     <!-- Top Navigation Bar -->
     <header class="navbar">
         <div class="nav-brand">
-            <div class="logo-badge">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <div class="logo-mark">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
                     <polyline points="2 17 12 22 22 17"></polyline>
                     <polyline points="2 12 12 17 22 12"></polyline>
                 </svg>
             </div>
-            <div class="brand-text">
-                <span class="brand-name">LAYA</span>
-                <span class="brand-sub">SYSTEM 1 DECISION ENGINE</span>
+            <div class="brand-info">
+                <span class="brand-title">LAYA</span>
+                <span class="brand-subtitle">DECISION ENGINE</span>
             </div>
         </div>
 
-        <div class="nav-badges">
-            <span class="badge badge-pulse">
-                <span class="pulse-dot"></span>
-                Non-Autoregressive
-            </span>
-            <span class="badge badge-speed" id="latencyBadge" title="Thời gian chạy 1 forward pass">
-                ⚡ ~33ms Forward Pass
-            </span>
-            <span class="badge badge-source" id="sourceBadge" title="Nguồn weights đang sử dụng">
-                🔍 Đang kiểm tra...
-            </span>
-            <span class="badge badge-hw" id="hwBadge">
-                💻 Hardware: CPU
-            </span>
+        <div class="nav-metrics">
+            <div class="status-chip">
+                <span class="status-indicator live"></span>
+                <span class="chip-text">NON-AUTOREGRESSIVE</span>
+            </div>
+            <div class="status-chip" id="latencyBadge" title="Độ trễ 1 forward pass">
+                <span class="chip-label">LATENCY</span>
+                <span class="chip-value">~65ms</span>
+            </div>
+            <div class="status-chip" id="sourceBadge" title="Trạng thái nguồn weights">
+                <span class="chip-label">STORAGE</span>
+                <span class="chip-value">INITIALIZING...</span>
+            </div>
+            <div class="status-chip" id="hwBadge" title="Cấu hình phần cứng suy luận">
+                <span class="chip-label">RUNTIME</span>
+                <span class="chip-value">CPU</span>
+            </div>
         </div>
 
-        <div class="nav-actions">
-            <button class="btn btn-secondary btn-sm" id="btnSettings" title="Cấu hình đường dẫn local & Offline">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div class="nav-controls">
+            <button class="nav-btn" id="btnSettings" title="Cấu hình đường dẫn local và môi trường Offline">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                 </svg>
-                Local / Offline
+                <span>Config</span>
             </button>
-            <button class="btn btn-secondary btn-sm" id="btnHelp" title="Hướng dẫn tải model & Môi trường Offline">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button class="nav-btn" id="btnHelp" title="Tài liệu triển khai môi trường Air-Gapped">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10"></circle>
                     <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
                     <line x1="12" y1="17" x2="12.01" y2="17"></line>
                 </svg>
-                README Offline
+                <span>Docs</span>
             </button>
-            <button class="btn btn-icon btn-sm" id="btnTheme" title="Chuyển chế độ Sáng / Tối">
-                <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button class="nav-btn icon-only" id="btnTheme" title="Chuyển chế độ sáng / tối" aria-label="Toggle theme">
+                <svg class="theme-icon-dark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+                <svg class="theme-icon-light hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="5"></circle>
                     <line x1="12" y1="1" x2="12" y2="3"></line>
                     <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -72,352 +78,360 @@
         </div>
     </header>
 
-    <!-- Sub-header: Presets & Concept Bar -->
-    <div class="concept-bar">
-        <div class="concept-title">
-            <span class="highlight">Decisions, Not Text</span> — Ra quyết định có cấu trúc với xác suất chuẩn hóa toán học (RLCD), không sinh văn bản, không ảo giác, độ trễ cực thấp (~33ms).
-        </div>
-        <div class="presets-container" id="presetsContainer">
-            <span class="presets-label">Mẫu tác vụ (Jev Presets):</span>
-            <div class="presets-pills" id="presetsList">
-                <!-- Injected via JavaScript -->
+    <!-- Sub-header: Minimal Task Presets Bar -->
+    <div class="presets-bar">
+        <div class="presets-wrapper">
+            <span class="presets-heading">PRESETS</span>
+            <div class="presets-items" id="presetsList">
+                <!-- Dynamically populated via app.js -->
             </div>
         </div>
     </div>
 
-    <!-- Main Workspace Split Container -->
-    <main class="main-container">
-        <!-- LEFT PANEL: State, Questions & Controls -->
-        <div class="panel panel-left">
-            <!-- STATE INPUT SECTION -->
-            <div class="section-card">
-                <div class="section-header">
-                    <div class="section-title">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <!-- Main Workspace -->
+    <main class="workspace-grid">
+        <!-- LEFT COLUMN: Input State & Decision Schema -->
+        <section class="column column-left">
+            <!-- Input State Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                             <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="16" y1="13" x2="8" y2="13"></line>
-                            <line x1="16" y1="17" x2="8" y2="17"></line>
-                            <polyline points="10 9 9 9 8 9"></polyline>
                         </svg>
-                        <span>1. Input State (Dữ liệu đầu vào)</span>
+                        <span>Input State</span>
                     </div>
-                    <div class="tab-group">
-                        <button class="tab-btn active" data-state-mode="json" id="btnStateJson">JSON</button>
-                        <button class="tab-btn" data-state-mode="text" id="btnStateText">Văn bản thuần</button>
+                    <div class="segmented-control">
+                        <button class="seg-btn active" data-state-mode="json" id="btnStateJson">JSON</button>
+                        <button class="seg-btn" data-state-mode="text" id="btnStateText">Plain Text</button>
                     </div>
                 </div>
-                <div class="input-container">
-                    <textarea id="stateInput" class="code-editor" spellcheck="false" placeholder="Nhập văn bản, email, tài liệu hoặc JSON object..."></textarea>
-                    <div class="input-footer">
-                        <span id="stateStats" class="stat-text">0 ký tự</span>
-                        <button class="btn btn-link btn-xs" id="btnFormatJson">Format JSON</button>
-                    </div>
+                <div class="card-body no-padding">
+                    <textarea id="stateInput" class="code-area" spellcheck="false" placeholder="Enter input text, email, log stream, or JSON object..."></textarea>
+                </div>
+                <div class="card-footer">
+                    <span id="stateStats" class="meta-caption">0 characters</span>
+                    <button class="text-btn" id="btnFormatJson">Prettify JSON</button>
                 </div>
             </div>
 
-            <!-- QUESTIONS SECTION -->
-            <div class="section-card">
-                <div class="section-header">
-                    <div class="section-title">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <!-- Decision Questions Schema Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>
-                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
                         </svg>
-                        <span>2. Questions Schema (Các quyết định cần đưa ra)</span>
+                        <span>Decision Schema</span>
                     </div>
-                    <div class="tab-group">
-                        <button class="tab-btn active" id="btnModeVisual">Visual Builder</button>
-                        <button class="tab-btn" id="btnModeRawJson">Raw JSON</button>
+                    <div class="segmented-control">
+                        <button class="seg-btn active" id="btnModeVisual">Visual</button>
+                        <button class="seg-btn" id="btnModeRawJson">JSON Schema</button>
                     </div>
                 </div>
 
                 <!-- Visual Question Builder -->
-                <div id="visualBuilderView" class="builder-view">
-                    <div class="questions-list" id="questionsList">
-                        <!-- Questions Cards Rendered Dynamically -->
+                <div id="visualBuilderView" class="builder-container">
+                    <div class="questions-stack" id="questionsList">
+                        <!-- Rendered dynamically -->
                     </div>
-                    <div class="builder-actions">
-                        <button class="btn btn-secondary btn-sm" id="btnAddQuestion">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <div class="builder-footer">
+                        <button class="btn-subtle" id="btnAddQuestion">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="12" y1="5" x2="12" y2="19"></line>
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                             </svg>
-                            Thêm câu hỏi mới
+                            <span>Add Decision Question</span>
                         </button>
-                        <span class="builder-hint">Hỗ trợ 3 kiểu chuẩn: Choice (phân loại), Score (chấm điểm theo thang), Noul (xác suất Đúng/Sai)</span>
                     </div>
                 </div>
 
                 <!-- Raw JSON Schema View -->
-                <div id="rawJsonView" class="builder-view hidden">
-                    <textarea id="rawQuestionsInput" class="code-editor" spellcheck="false" placeholder="Nhập questions dictionary định dạng JSON..."></textarea>
-                    <div class="input-footer">
-                        <span id="rawJsonStatus" class="stat-text">JSON hợp lệ</span>
-                        <button class="btn btn-link btn-xs" id="btnSyncVisual">Cập nhật sang Visual Builder</button>
+                <div id="rawJsonView" class="builder-container hidden">
+                    <textarea id="rawQuestionsInput" class="code-area" spellcheck="false" placeholder="Enter JSON schema object for questions..."></textarea>
+                    <div class="card-footer">
+                        <span id="rawJsonStatus" class="meta-caption">Valid JSON</span>
+                        <button class="text-btn" id="btnSyncVisual">Apply to Visual View</button>
                     </div>
                 </div>
             </div>
 
-            <!-- EXECUTION & MODEL CONTROLS -->
-            <div class="section-card control-card">
-                <div class="control-grid">
-                    <div class="control-field">
-                        <label for="modelSelect">Mô hình Laya:</label>
-                        <select id="modelSelect" class="form-select">
-                            <option value="auto" selected>⚡ Auto-Router (Tự động điều phối theo ngôn ngữ/tác vụ)</option>
-                            <option value="english">Root / English (ModernBERT-421M, context 512)</option>
-                            <option value="multilingual">Multilingual (mmBERT-base, 100+ ngôn ngữ, context tới 8k)</option>
-                            <option value="typed-decisions">Typed-Decisions (Fine-tuned chuyên sâu cho 4 workflows)</option>
-                        </select>
-                    </div>
-
-                    <div class="control-field">
-                        <label for="backendSelect">Inference Backend:</label>
-                        <select id="backendSelect" class="form-select">
-                            <option value="pytorch" selected>🔥 PyTorch Engine</option>
-                            <option value="openvino">⚡ Intel OpenVINO (AMX / VNNI)</option>
-                        </select>
-                    </div>
-
-                    <div class="control-field" id="precisionField">
-                        <label for="precisionSelect">Mức lượng tử hóa (Quantization):</label>
-                        <select id="precisionSelect" class="form-select">
-                            <option value="int8" selected>INT8 (75% nhẹ hơn, AMX Ultra-Fast)</option>
-                            <option value="fp16">FP16 (50% nhẹ hơn, Cân bằng)</option>
-                            <option value="fp32">FP32 (Nguyên bản)</option>
-                        </select>
-                    </div>
-
-                    <div class="control-field">
-                        <label for="contextLenSelect">Giới hạn context (max_len):</label>
-                        <select id="contextLenSelect" class="form-select">
-                            <option value="" selected>Mặc định của checkpoint (512 / 1024)</option>
-                            <option value="2048">2,048 tokens</option>
-                            <option value="4096">4,096 tokens</option>
-                            <option value="8192">8,192 tokens (Văn bản dài - Multilingual)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="offline-toggle-bar">
-                    <label class="checkbox-label" title="Buộc chỉ dùng model tải về máy, hoàn toàn ngắt kết nối internet">
-                        <input type="checkbox" id="chkForceOffline">
-                        <span>🔒 Bắt buộc chế độ Offline (Air-Gapped Mode)</span>
-                    </label>
-                    <span class="current-path-hint" id="currentPathHint" title="Đường dẫn local hiện tại">
-                        Local path: <code id="activePathText">./models/laya</code>
-                    </span>
-                </div>
-
-                <div class="action-bar">
-                    <button class="btn btn-primary btn-large" id="btnExecute">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            <!-- Execution Configuration Card -->
+            <div class="card config-card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
                         </svg>
-                        <span>THỰC THI QUYẾT ĐỊNH (SINGLE PASS)</span>
-                        <kbd class="kbd-shortcut">Ctrl+Enter</kbd>
-                    </button>
+                        <span>Runtime Parameters</span>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div class="form-grid">
+                        <div class="form-field">
+                            <label for="modelSelect">MODEL CHECKPOINT</label>
+                            <select id="modelSelect" class="select-input">
+                                <option value="auto" selected>Auto-Router (Language Adaptive)</option>
+                                <option value="multilingual">Multilingual (mmBERT-base, Vietnamese & 100+ langs)</option>
+                                <option value="english">Root / English (ModernBERT-421M, 512 ctx)</option>
+                                <option value="typed-decisions">Typed Decisions (4 Standard Workflows)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-field">
+                            <label for="backendSelect">EXECUTION BACKEND</label>
+                            <select id="backendSelect" class="select-input">
+                                <option value="openvino" selected>Intel OpenVINO (AMX / VNNI)</option>
+                                <option value="pytorch">PyTorch Native (CPU)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-field" id="precisionField">
+                            <label for="precisionSelect">QUANTIZATION PRECISION</label>
+                            <select id="precisionSelect" class="select-input">
+                                <option value="int8" selected>INT8 (Ultra-Lightweight, 75% memory saved)</option>
+                                <option value="fp16">FP16 (Half Precision, 50% memory saved)</option>
+                                <option value="fp32">FP32 (Original Precision)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-field">
+                            <label for="contextLenSelect">MAX CONTEXT LENGTH</label>
+                            <select id="contextLenSelect" class="select-input">
+                                <option value="" selected>Default (Model Native)</option>
+                                <option value="1024">1,024 tokens</option>
+                                <option value="2048">2,048 tokens</option>
+                                <option value="4096">4,096 tokens</option>
+                                <option value="8192">8,192 tokens (Multilingual Long Context)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="offline-row">
+                        <label class="custom-checkbox">
+                            <input type="checkbox" id="chkForceOffline">
+                            <span class="checkbox-box"></span>
+                            <span class="checkbox-text">Enforce Air-Gapped Mode (Offline Only)</span>
+                        </label>
+                        <span class="path-readout" id="currentPathHint" title="Current verified model directory">
+                            Path: <code id="activePathText">./models/openvino</code>
+                        </span>
+                    </div>
+
+                    <div class="execute-action">
+                        <button class="btn-execute" id="btnExecute">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            <span>RUN DECISION PASS</span>
+                            <span class="key-shortcut">Ctrl+Enter</span>
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- RIGHT PANEL: Decision Dashboard & Metrics (Jev Style) -->
-        <div class="panel panel-right">
-            <!-- PERFORMANCE STATUS BAR -->
-            <div class="metrics-bar" id="metricsBar">
-                <div class="metric-item">
-                    <span class="metric-label">Độ trễ suy luận</span>
-                    <span class="metric-value highlight-cyan" id="metricLatency">—</span>
+        <!-- RIGHT COLUMN: Output Dashboard & Decision Cards -->
+        <section class="column column-right">
+            <!-- Performance Telemetry Strip -->
+            <div class="telemetry-bar" id="metricsBar">
+                <div class="telemetry-item">
+                    <span class="telemetry-label">INFERENCE TIME</span>
+                    <span class="telemetry-value active-val" id="metricLatency">—</span>
                 </div>
-                <div class="metric-divider"></div>
-                <div class="metric-item">
-                    <span class="metric-label">Mô hình thực thi</span>
-                    <span class="metric-value" id="metricModel">—</span>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">ACTIVE MODEL</span>
+                    <span class="telemetry-value" id="metricModel">—</span>
                 </div>
-                <div class="metric-divider"></div>
-                <div class="metric-item">
-                    <span class="metric-label">Số quyết định</span>
-                    <span class="metric-value" id="metricCount">—</span>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">DECISIONS</span>
+                    <span class="telemetry-value" id="metricCount">—</span>
                 </div>
-                <div class="metric-divider"></div>
-                <div class="metric-item">
-                    <span class="metric-label">Chế độ weights</span>
-                    <span class="metric-value" id="metricWeights">—</span>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">WEIGHTS SOURCE</span>
+                    <span class="telemetry-value" id="metricWeights">—</span>
                 </div>
             </div>
 
-            <!-- DECISION RESULTS CARDS -->
-            <div class="results-container" id="resultsContainer">
-                <!-- Empty State before execution -->
+            <!-- Decision Cards Container -->
+            <div class="results-wrapper" id="resultsContainer">
+                <!-- Initial Empty State -->
                 <div class="empty-state" id="emptyState">
-                    <div class="empty-icon">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <div class="empty-glyph">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
                             <polyline points="2 17 12 22 22 17"></polyline>
                             <polyline points="2 12 12 17 22 12"></polyline>
                         </svg>
                     </div>
-                    <h3>Sẵn sàng đưa ra quyết định</h3>
-                    <p>Chọn một mẫu tác vụ (preset) ở trên hoặc nhập State & Câu hỏi của bạn, sau đó nhấn <strong>THỰC THI QUYẾT ĐỊNH</strong> để mô hình Laya tính toán xác suất chuẩn hóa trong 1 lượt chạy duy nhất (~33ms).</p>
-                    <div class="quick-tips">
-                        <div class="tip-item">⚡ <strong>Choice:</strong> Trả về nhãn tối ưu kèm phân bố xác suất mọi lựa chọn.</div>
-                        <div class="tip-item">🎯 <strong>Score:</strong> Điểm kỳ vọng theo thước đo thang bậc (rubric).</div>
-                        <div class="tip-item">🔍 <strong>Noul:</strong> Xác suất điều kiện là Đúng (P(True)).</div>
+                    <div class="empty-title">Ready for Decision Inference</div>
+                    <div class="empty-desc">
+                        Select a task preset above or provide an input state and decision schema, then trigger <strong>Run Decision Pass</strong> to execute a single forward evaluation.
+                    </div>
+                    <div class="primitive-grid">
+                        <div class="primitive-cell">
+                            <span class="cell-title">CHOICE</span>
+                            <span class="cell-desc">Optimal categorical label with calibrated probability distribution across candidates.</span>
+                        </div>
+                        <div class="primitive-cell">
+                            <span class="cell-title">SCORE</span>
+                            <span class="cell-desc">Continuous expected value anchored on ordinal criteria definitions.</span>
+                        </div>
+                        <div class="primitive-cell">
+                            <span class="cell-title">BOOLEAN</span>
+                            <span class="cell-desc">Direct condition verification with binary calibrated probability.</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Decision Cards list -->
-                <div class="decisions-list hidden" id="decisionsList">
-                    <!-- Cards will be populated dynamically -->
+                <!-- Dynamic Decision Cards Stack -->
+                <div class="decisions-stack hidden" id="decisionsList">
+                    <!-- Injected via app.js -->
                 </div>
             </div>
 
-            <!-- CODE SNIPPET / INTEGRATION DRAWER -->
-            <div class="code-export-card">
-                <div class="section-header">
-                    <div class="section-title">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <!-- Code Integration Card -->
+            <div class="card code-card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="16 18 22 12 16 6"></polyline>
                             <polyline points="8 6 2 12 8 18"></polyline>
                         </svg>
-                        <span>Nhúng vào Backend Code (Integration Snippet)</span>
+                        <span>Code Integration</span>
                     </div>
-                    <div class="tab-group">
-                        <button class="tab-btn active" id="tabSnippetPy">Python SDK</button>
-                        <button class="tab-btn" id="tabSnippetCurl">cURL API</button>
-                        <button class="tab-btn" id="tabSnippetJson">Raw Response</button>
+                    <div class="segmented-control">
+                        <button class="seg-btn active" id="tabSnippetPy">Python SDK</button>
+                        <button class="seg-btn" id="tabSnippetCurl">cURL API</button>
+                        <button class="seg-btn" id="tabSnippetJson">Response</button>
                     </div>
                 </div>
-                <div class="snippet-content">
-                    <pre><code id="snippetCode">// Nhấn thực thi quyết định để sinh mã nguồn nhúng tương ứng...</code></pre>
-                    <button class="btn btn-secondary btn-xs copy-btn" id="btnCopySnippet">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="code-viewer">
+                    <pre><code id="snippetCode">// Execute a decision pass to generate implementation code...</code></pre>
+                    <button class="copy-trigger" id="btnCopySnippet" title="Copy code">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                         </svg>
-                        Copy
+                        <span>Copy</span>
                     </button>
                 </div>
             </div>
-        </div>
+        </section>
     </main>
 
-    <!-- SETTINGS & LOCAL PATH MODAL -->
-    <div class="modal-overlay hidden" id="settingsModal">
-        <div class="modal-box">
+    <!-- Modal: Local Model Configuration -->
+    <div class="modal-backdrop hidden" id="settingsModal">
+        <div class="modal-dialog">
             <div class="modal-header">
-                <h3>Cấu hình Local Model & Môi trường Offline</h3>
-                <button class="modal-close" id="btnCloseSettings">&times;</button>
+                <div class="modal-title">Model Directory & Offline Configuration</div>
+                <button class="modal-close-btn" id="btnCloseSettings" aria-label="Close dialog">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="inputLocalPath">Đường dẫn thư mục chứa model trên máy Local:</label>
-                    <div class="input-with-button">
-                        <input type="text" id="inputLocalPath" class="form-input" placeholder="/absolute/path/to/models/laya hoặc ./models/laya">
-                        <button class="btn btn-secondary" id="btnValidateLocalPath">Kiểm tra đường dẫn</button>
+            <div class="modal-content">
+                <div class="modal-form-group">
+                    <label for="inputLocalPath">LOCAL MODEL DIRECTORY PATH</label>
+                    <div class="path-input-group">
+                        <input type="text" id="inputLocalPath" class="text-input" placeholder="/path/to/models/laya or ./models/openvino">
+                        <button class="btn-action" id="btnValidateLocalPath">Inspect Path</button>
                     </div>
-                    <small class="form-help">Thư mục chứa các tệp: <code>model.safetensors</code>, <code>rl_agent_config.json</code>, thư mục <code>tokenizer</code>, <code>encoder</code>.</small>
+                    <span class="field-hint">Target folder containing <code>model.safetensors</code>, <code>rl_agent_config.json</code>, or OpenVINO <code>.xml/.bin</code> files.</span>
                 </div>
 
-                <!-- Path Inspection Results -->
-                <div class="path-status-card" id="pathStatusCard">
-                    <h4>Trạng thái kiểm tra tệp local:</h4>
-                    <div class="status-rows">
-                        <div class="status-row">
-                            <span>Thư mục tồn tại:</span>
-                            <span id="stFolderExists" class="status-badge badge-pending">Chưa kiểm tra</span>
+                <div class="inspection-panel" id="pathStatusCard">
+                    <div class="panel-header">DIRECTORY INSPECTION</div>
+                    <div class="inspection-grid">
+                        <div class="inspection-item">
+                            <span class="item-name">Directory Existence:</span>
+                            <span id="stFolderExists" class="badge-status pending">Unchecked</span>
                         </div>
-                        <div class="status-row">
-                            <span>Root Checkpoint (English):</span>
-                            <span id="stCkptEnglish" class="status-badge badge-pending">Chưa kiểm tra</span>
+                        <div class="inspection-item">
+                            <span class="item-name">English Checkpoint:</span>
+                            <span id="stCkptEnglish" class="badge-status pending">Unchecked</span>
                         </div>
-                        <div class="status-row">
-                            <span>Multilingual Checkpoint:</span>
-                            <span id="stCkptMulti" class="status-badge badge-pending">Chưa kiểm tra</span>
+                        <div class="inspection-item">
+                            <span class="item-name">Multilingual Checkpoint:</span>
+                            <span id="stCkptMulti" class="badge-status pending">Unchecked</span>
                         </div>
-                        <div class="status-row">
-                            <span>Typed-Decisions Checkpoint:</span>
-                            <span id="stCkptTyped" class="status-badge badge-pending">Chưa kiểm tra</span>
+                        <div class="inspection-item">
+                            <span class="item-name">Typed Decisions Checkpoint:</span>
+                            <span id="stCkptTyped" class="badge-status pending">Unchecked</span>
                         </div>
-                        <div class="status-row">
-                            <span>Tổng dung lượng trên ổ cứng:</span>
-                            <span id="stTotalSize" class="status-text">—</span>
+                        <div class="inspection-item full-width">
+                            <span class="item-name">Total Local Weight Storage:</span>
+                            <span id="stTotalSize" class="item-data">—</span>
                         </div>
                     </div>
-                    <div class="missing-files-alert hidden" id="missingFilesAlert"></div>
+                    <div class="warning-callout hidden" id="missingFilesAlert"></div>
                 </div>
 
-                <div class="form-group">
-                    <label class="checkbox-label">
+                <div class="modal-form-group">
+                    <label class="custom-checkbox">
                         <input type="checkbox" id="chkModalOffline">
-                        <strong>Bật cờ biến môi trường Offline (<code>HF_HUB_OFFLINE=1</code>)</strong>
+                        <span class="checkbox-box"></span>
+                        <span class="checkbox-text">Enforce Environment Variable <code>HF_HUB_OFFLINE=1</code></span>
                     </label>
-                    <small class="form-help">Ngăn chặn hoàn toàn mọi kết nối ra ngoài internet tới huggingface.co, đảm bảo vận hành trong mạng nội bộ (air-gapped).</small>
+                    <span class="field-hint">Completely disables outbound network requests to huggingface.co, ensuring air-gapped compliance.</span>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="btnCancelSettings">Đóng</button>
-                <button class="btn btn-primary" id="btnSaveSettings">Lưu cấu hình</button>
+            <div class="modal-actions">
+                <button class="btn-subtle" id="btnCancelSettings">Cancel</button>
+                <button class="btn-action primary" id="btnSaveSettings">Save Configuration</button>
             </div>
         </div>
     </div>
 
-    <!-- OFFLINE GUIDE & README MODAL -->
-    <div class="modal-overlay hidden" id="helpModal">
-        <div class="modal-box modal-box-large">
+    <!-- Modal: Offline Documentation -->
+    <div class="modal-backdrop hidden" id="helpModal">
+        <div class="modal-dialog large">
             <div class="modal-header">
-                <h3>📖 Hướng dẫn tải Model & Triển khai trong môi trường Offline</h3>
-                <button class="modal-close" id="btnCloseHelp">&times;</button>
+                <div class="modal-title">Air-Gapped & Offline Deployment Guide</div>
+                <button class="modal-close-btn" id="btnCloseHelp" aria-label="Close dialog">&times;</button>
             </div>
-            <div class="modal-body markdown-body">
-                <h4>1. Tổng quan kiến trúc Offline của Laya</h4>
-                <p>Khác với các LLM tự hồi quy sinh văn bản (autoregressive), Laya là mô hình System 1 không sinh text mà trả về trực tiếp các quyết định (Choice, Score, Noul) với độ trễ ~33ms. Khi tải về local, Laya gồm 3 checkpoint:</p>
+            <div class="modal-content doc-content">
+                <h3>1. Architecture Overview</h3>
+                <p>Unlike autoregressive token-by-token LLMs, Laya operates as a fast System 1 model that evaluates state representations in a single forward pass (~33ms to ~65ms). It uses three primary checkpoints:</p>
                 <ul>
-                    <li><code>convaiinnovations/laya</code> (Thư mục gốc): Model tiếng Anh (ModernBERT-large, 421M params, context 512).</li>
-                    <li><code>multilingual</code>: Model đa ngôn ngữ (mmBERT-base, 322M params, hỗ trợ tiếng Việt và 100+ ngôn ngữ, context tới 8192).</li>
-                    <li><code>typed-decisions</code>: Model chuyên sâu cho phân loại ticket, bảo mật, CS, agent traces (acc 0.766).</li>
+                    <li><code>convaiinnovations/laya</code>: English root (ModernBERT-large, 421M params, context 512).</li>
+                    <li><code>multilingual</code>: Multilingual model (mmBERT-base, 322M params, Vietnamese and 100+ languages, context up to 8k).</li>
+                    <li><code>typed-decisions</code>: Workflow-optimized checkpoint for classification, routing, and guardrails.</li>
                 </ul>
 
-                <h4>2. Cách tải toàn bộ model về local (trên máy có internet)</h4>
-                <p>Sử dụng script Python kèm theo đã được tối ưu:</p>
-                <pre><code># Tải tất cả 3 checkpoint về thư mục ./models/laya
+                <h3>2. Downloading Models on a Networked Host</h3>
+                <pre><code># Download all checkpoints locally:
 python download_models.py --output-dir ./models/laya --checkpoint all
 
-# Hoặc tải bằng bash script:
-bash download_models.sh ./models/laya
+# Or download OpenVINO packages from Google Cloud Storage:
+gcloud storage cp "gs://meolab-laya-models/*int8.tar.gz" ./models/openvino/
+cd ./models/openvino && tar -xzvf multilingual_int8.tar.gz</code></pre>
 
-# Hoặc dùng huggingface-cli:
-huggingface-cli download convaiinnovations/laya --local-dir ./models/laya --local-dir-use-symlinks False</code></pre>
+                <h3>3. Transferring to Air-Gapped Environment</h3>
+                <pre><code># Pack web app and local models:
+tar -czvf laya_airgap_package.tar.gz ./models/ ./app/ pyproject.toml run.sh
 
-                <h4>3. Đóng gói và chuyển sang máy không có internet (Air-gapped)</h4>
-                <pre><code># Bước 1: Nén thư mục model trên máy có mạng
-tar -czvf laya_models_offline.tar.gz ./models/laya
+# Extract on destination offline host:
+tar -xzvf laya_airgap_package.tar.gz -C /opt/laya-web-app/</code></pre>
 
-# Bước 2: Chép file laya_models_offline.tar.gz sang máy offline (USB/Ổ cứng di động/NFS)
-
-# Bước 3: Giải nén trên máy offline
-tar -xzvf laya_models_offline.tar.gz -C /opt/laya-web-app/</code></pre>
-
-                <h4>4. Khởi chạy Web App trong môi trường không có internet</h4>
-                <pre><code># Thiết lập các biến môi trường ngắt kết nối tuyệt đối
-export HF_HUB_OFFLINE=1
+                <h3>4. Offline Execution</h3>
+                <pre><code>export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
-export LAYA_MODEL_PATH=/opt/laya-web-app/models/laya
+export LAYA_MODEL_PATH=/opt/laya-web-app/models/openvino
 
-# Khởi chạy ứng dụng
-python -m app.main</code></pre>
-                <p>Giao diện web app sẽ tự động nhận diện weights tại thư mục local và chạy với 0 byte internet transfer!</p>
+./run.sh</code></pre>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" id="btnCloseHelpFooter">Đã hiểu</button>
+            <div class="modal-actions">
+                <button class="btn-action primary" id="btnCloseHelpFooter">Dismiss</button>
             </div>
         </div>
     </div>
 
-    <!-- Notification Toast -->
-    <div class="toast-container" id="toastContainer"></div>
+    <!-- Notification Toast Container -->
+    <div class="toast-stack" id="toastContainer"></div>
 
     <script src="/static/js/app.js"></script>
 </body>

@@ -28,7 +28,7 @@ REQUIRED_CHECKPOINT_FILES = [
 
 def verify_checkpoint(ckpt_dir: str, name: str) -> bool:
     """Verifies that all required files for a checkpoint exist on disk."""
-    print(f"\n🔍 Đang kiểm tra checkpoint [{name}] tại: {ckpt_dir}")
+    print(f"\n Đang kiểm tra checkpoint [{name}] tại: {ckpt_dir}")
     missing = []
     total_size = 0
 
@@ -40,13 +40,13 @@ def verify_checkpoint(ckpt_dir: str, name: str) -> bool:
             total_size += os.path.getsize(full_path)
 
     if missing:
-        print(f"❌ Checkpoint [{name}] thiếu {len(missing)} tệp quan trọng:")
+        print(f" Checkpoint [{name}] thiếu {len(missing)} tệp quan trọng:")
         for m in missing:
-            print(f"   - {m}")
+            print("- {m}")
         return False
     else:
         mb = total_size / (1024 * 1024)
-        print(f"✅ Checkpoint [{name}] hợp lệ! Tổng dung lượng: {mb:.1f} MB ({len(REQUIRED_CHECKPOINT_FILES)} tệp đầy đủ)")
+        print(f" Checkpoint [{name}] hợp lệ! Tổng dung lượng: {mb:.1f} MB ({len(REQUIRED_CHECKPOINT_FILES)} tệp đầy đủ)")
         return True
 
 def download_checkpoint(
@@ -61,9 +61,9 @@ def download_checkpoint(
     - typed-decisions: downloads subfolder 'typed-decisions'
     """
     print(f"\n==================================================")
-    print(f"📥 Bắt đầu tải checkpoint: {checkpoint_name.upper()}")
-    print(f"   Repo: {REPO_ID}")
-    print(f"   Thư mục đích: {target_dir}")
+    print(f" Bắt đầu tải checkpoint: {checkpoint_name.upper()}")
+    print("Repo: {REPO_ID}")
+    print("Thư mục đích: {target_dir}")
     print(f"==================================================")
 
     os.makedirs(target_dir, exist_ok=True)
@@ -90,7 +90,7 @@ def download_checkpoint(
     else:
         raise ValueError(f"Không nhận diện được checkpoint: {checkpoint_name}")
 
-    print(f"⏳ Đang tải các tệp theo pattern: {patterns}...")
+    print(f" Đang tải các tệp theo pattern: {patterns}...")
 
     # We download directly using snapshot_download with allow_patterns
     downloaded_cache = snapshot_download(
@@ -101,7 +101,7 @@ def download_checkpoint(
         local_dir_use_symlinks=False,  # Create real files so they can be copied to offline machines
     )
 
-    print(f"✨ Hoàn tất tải checkpoint: {checkpoint_name}")
+    print(f" Hoàn tất tải checkpoint: {checkpoint_name}")
     verify_checkpoint(dest_dir, checkpoint_name)
     return dest_dir
 
@@ -135,8 +135,8 @@ def main():
     args = parser.parse_args()
     target_base = os.path.abspath(args.output_dir)
 
-    print(f"🚀 LAYA OFFLINE MODEL MANAGER")
-    print(f"📁 Thư mục mục tiêu: {target_base}")
+    print(f" LAYA OFFLINE MODEL MANAGER")
+    print(f" Thư mục mục tiêu: {target_base}")
 
     checkpoints_to_process = (
         ["english", "multilingual", "typed-decisions"]
@@ -145,7 +145,7 @@ def main():
     )
 
     if args.verify_only:
-        print("\n🔍 CHẾ ĐỘ KIỂM TRA TỆP LOCAL (VERIFY ONLY):")
+        print("\n CHẾ ĐỘ KIỂM TRA TỆP LOCAL (VERIFY ONLY):")
         all_ok = True
         for ckpt in checkpoints_to_process:
             check_path = target_base if ckpt == "english" else os.path.join(target_base, ckpt)
@@ -153,31 +153,31 @@ def main():
             if not ok:
                 all_ok = False
         if all_ok:
-            print("\n🎉 TẤT CẢ CHECKPOINT ĐÃ SẴN SÀNG CHO MÔI TRƯỜNG OFFLINE!")
+            print("\n TẤT CẢ CHECKPOINT ĐÃ SẴN SÀNG CHO MÔI TRƯỜNG OFFLINE!")
             sys.exit(0)
         else:
-            print("\n⚠️ Một số checkpoint bị thiếu tệp. Hãy chạy lệnh tải không có cờ --verify-only.")
+            print("\n️ Một số checkpoint bị thiếu tệp. Hãy chạy lệnh tải không có cờ --verify-only.")
             sys.exit(1)
 
-    print(f"\n📦 Danh sách checkpoint cần tải: {checkpoints_to_process}")
+    print(f"\n Danh sách checkpoint cần tải: {checkpoints_to_process}")
     for ckpt in checkpoints_to_process:
         download_checkpoint(ckpt, target_base, token=args.token)
 
     print("\n" + "=" * 60)
-    print("🎉 HOÀN TẤT TẢI TOÀN BỘ CHECKPOINT VỀ LOCAL!")
+    print(" HOÀN TẤT TẢI TOÀN BỘ CHECKPOINT VỀ LOCAL!")
     print("=" * 60)
-    print(f"📁 Đường dẫn lưu trữ: {target_base}")
-    print("\n💡 HƯỚNG DẪN ĐÓNG GÓI VÀ CHUYỂN TỚI MÁY OFFLINE:")
+    print(f" Đường dẫn lưu trữ: {target_base}")
+    print("\n HƯỚNG DẪN ĐÓNG GÓI VÀ CHUYỂN TỚI MÁY OFFLINE:")
     print(f"1. Nén thư mục model trên máy có internet:")
-    print(f"   tar -czvf laya_models_offline.tar.gz -C {os.path.dirname(target_base)} {os.path.basename(target_base)}")
+    print("tar -czvf laya_models_offline.tar.gz -C {os.path.dirname(target_base)} {os.path.basename(target_base)}")
     print(f"\n2. Chép file `laya_models_offline.tar.gz` sang máy offline (qua USB/SCP/NFS)")
     print(f"\n3. Giải nén trên máy offline:")
-    print(f"   mkdir -p ./models && tar -xzvf laya_models_offline.tar.gz -C ./models/")
+    print("mkdir -p ./models && tar -xzvf laya_models_offline.tar.gz -C ./models/")
     print(f"\n4. Thiết lập biến môi trường và chạy web app không cần mạng:")
-    print(f"   export HF_HUB_OFFLINE=1")
-    print(f"   export TRANSFORMERS_OFFLINE=1")
-    print(f"   export LAYA_MODEL_PATH={target_base}")
-    print(f"   python -m app.main")
+    print("export HF_HUB_OFFLINE=1")
+    print("export TRANSFORMERS_OFFLINE=1")
+    print("export LAYA_MODEL_PATH={target_base}")
+    print("python -m app.main")
     print("=" * 60 + "\n")
 
 if __name__ == "__main__":

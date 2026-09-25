@@ -26,7 +26,7 @@ MODELS = [
 
 def export_model_to_openvino(name: str, repo_or_path: str, subfolder: str = None, output_base: str = "./openvino_models"):
     print(f"\n============================================================")
-    print(f"📦 BẮT ĐẦU EXPORT CHECKPOINT: [{name.upper()}] SANG OPENVINO")
+    print(f" BẮT ĐẦU EXPORT CHECKPOINT: [{name.upper()}] SANG OPENVINO")
     print(f"============================================================")
 
     core = ov.Core()
@@ -34,7 +34,7 @@ def export_model_to_openvino(name: str, repo_or_path: str, subfolder: str = None
     os.makedirs(ckpt_dir, exist_ok=True)
 
     # 1. Load PyTorch model
-    print(f"⏳ Đang nạp PyTorch Agent ({repo_or_path})...")
+    print(f" Đang nạp PyTorch Agent ({repo_or_path})...")
     agent = Agent(repo_or_path, subfolder=subfolder, device="cpu")
     agent.model.eval()
 
@@ -47,7 +47,7 @@ def export_model_to_openvino(name: str, repo_or_path: str, subfolder: str = None
     inputs = (dummy_input_ids, dummy_attention_mask, dummy_marker_pos, dummy_marker_mask, dummy_qtype)
 
     onnx_path = os.path.join(ckpt_dir, "model.onnx")
-    print(f"⏳ Đang xuất đồ thị PyTorch sang ONNX...")
+    print(f" Đang xuất đồ thị PyTorch sang ONNX...")
     torch.onnx.export(
         agent.model,
         inputs,
@@ -67,32 +67,32 @@ def export_model_to_openvino(name: str, repo_or_path: str, subfolder: str = None
             "act_logits": {0: "batch_size"}
         }
     )
-    print(f"✓ Hoàn tất xuất ONNX.")
+    print(f" Hoàn tất xuất ONNX.")
 
     # 3. Save OpenVINO FP32
-    print(f"⏳ Đang lưu OpenVINO FP32...")
+    print(f" Đang lưu OpenVINO FP32...")
     ov_fp32 = core.read_model(onnx_path)
     fp32_xml = os.path.join(ckpt_dir, f"laya_{name}_fp32.xml")
     ov.save_model(ov_fp32, fp32_xml, compress_to_fp16=False)
     fp32_mb = (os.path.getsize(fp32_xml) + os.path.getsize(fp32_xml.replace('.xml', '.bin'))) / (1024 * 1024)
-    print(f"✓ OpenVINO FP32: {fp32_mb:.1f} MB")
+    print(f" OpenVINO FP32: {fp32_mb:.1f} MB")
 
     # 4. Save OpenVINO FP16
-    print(f"⏳ Đang nén OpenVINO FP16 (Half Precision)...")
+    print(f" Đang nén OpenVINO FP16 (Half Precision)...")
     ov_fp16 = core.read_model(onnx_path)
     fp16_xml = os.path.join(ckpt_dir, f"laya_{name}_fp16.xml")
     ov.save_model(ov_fp16, fp16_xml, compress_to_fp16=True)
     fp16_mb = (os.path.getsize(fp16_xml) + os.path.getsize(fp16_xml.replace('.xml', '.bin'))) / (1024 * 1024)
-    print(f"✓ OpenVINO FP16: {fp16_mb:.1f} MB (Giảm {(1 - fp16_mb/fp32_mb)*100:.1f}%)")
+    print(f" OpenVINO FP16: {fp16_mb:.1f} MB (Giảm {(1 - fp16_mb/fp32_mb)*100:.1f}%)")
 
     # 5. Quantize OpenVINO INT8 (NNCF AMX/VNNI)
-    print(f"⏳ Đang lượng tử hóa OpenVINO INT8 qua NNCF...")
+    print(f" Đang lượng tử hóa OpenVINO INT8 qua NNCF...")
     ov_int8 = core.read_model(onnx_path)
     compressed_int8 = nncf.compress_weights(ov_int8, mode=nncf.CompressWeightsMode.INT8_SYM)
     int8_xml = os.path.join(ckpt_dir, f"laya_{name}_int8.xml")
     ov.save_model(compressed_int8, int8_xml)
     int8_mb = (os.path.getsize(int8_xml) + os.path.getsize(int8_xml.replace('.xml', '.bin'))) / (1024 * 1024)
-    print(f"✓ OpenVINO INT8: {int8_mb:.1f} MB (Giảm {(1 - int8_mb/fp32_mb)*100:.1f}%)")
+    print(f" OpenVINO INT8: {int8_mb:.1f} MB (Giảm {(1 - int8_mb/fp32_mb)*100:.1f}%)")
 
     # Save tokenizer and config
     tok_dir = os.path.join(ckpt_dir, "tokenizer")
@@ -101,7 +101,7 @@ def export_model_to_openvino(name: str, repo_or_path: str, subfolder: str = None
     with open(os.path.join(ckpt_dir, "rl_agent_config.json"), "w") as f:
         json.dump(agent.cfg, f, indent=2)
 
-    print(f"🎉 Hoàn tất xuất checkpoint [{name}] sang OpenVINO tại: {ckpt_dir}")
+    print(f" Hoàn tất xuất checkpoint [{name}] sang OpenVINO tại: {ckpt_dir}")
 
 def main():
     parser = argparse.ArgumentParser(description="Export Laya models to OpenVINO (FP32, FP16, INT8)")

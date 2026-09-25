@@ -1,7 +1,8 @@
 /**
- * Laya — System 1 Decision Engine (Jev-Style Web Client)
+ * Laya — System 1 Decision Engine (Web Client)
  * Handles interactive decision playground, visual question builder, offline path validation,
  * probability meter rendering, and code generation.
+ * Minimalist, sleek, professional UI with zero emojis.
  */
 
 // Application State
@@ -11,11 +12,12 @@ const state = {
     stateMode: 'json', // 'json' or 'text'
     questionsMode: 'visual', // 'visual' or 'raw'
     questions: {},
-    localPath: './models/laya',
+    localPath: './models/openvino',
     forceOffline: false,
     hardware: null,
     lastResult: null,
-    activeSnippetTab: 'py' // 'py', 'curl', 'json'
+    activeSnippetTab: 'py', // 'py', 'curl', 'json'
+    cachedSnippets: null
 };
 
 // DOM Elements
@@ -100,14 +102,15 @@ const elements = {
 // Utility Functions
 // ==============================================================================
 function showToast(message, type = 'info') {
+    if (!elements.toastContainer) return;
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    toast.innerHTML = `<span>${message}</span>`;
+    toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
     elements.toastContainer.appendChild(toast);
     setTimeout(() => {
         toast.style.opacity = '0';
-        toast.style.transform = 'translateY(10px)';
-        toast.style.transition = 'all 0.2s';
+        toast.style.transform = 'translateY(6px)';
+        toast.style.transition = 'all 0.18s ease-out';
         setTimeout(() => toast.remove(), 200);
     }, 3200);
 }
@@ -129,39 +132,41 @@ async function initApp() {
     updateStateStats();
 }
 
+function applyTheme(theme) {
+    const isDark = theme === 'dark';
+    elements.html.classList.toggle('dark', isDark);
+    elements.html.classList.toggle('light', !isDark);
+    
+    const iconDark = elements.btnTheme?.querySelector('.theme-icon-dark');
+    const iconLight = elements.btnTheme?.querySelector('.theme-icon-light');
+    if (iconDark && iconLight) {
+        iconDark.classList.toggle('hidden', !isDark);
+        iconLight.classList.toggle('hidden', isDark);
+    }
+}
+
 function setupTheme() {
     const savedTheme = localStorage.getItem('laya_theme') || 'dark';
-    if (savedTheme === 'light') {
-        elements.html.classList.remove('dark');
-        elements.html.classList.add('light');
-    } else {
-        elements.html.classList.remove('light');
-        elements.html.classList.add('dark');
-    }
+    applyTheme(savedTheme);
 }
 
 function toggleTheme() {
-    if (elements.html.classList.contains('dark')) {
-        elements.html.classList.remove('dark');
-        elements.html.classList.add('light');
-        localStorage.setItem('laya_theme', 'light');
-    } else {
-        elements.html.classList.remove('light');
-        elements.html.classList.add('dark');
-        localStorage.setItem('laya_theme', 'dark');
-    }
+    const isCurrentlyDark = elements.html.classList.contains('dark');
+    const nextTheme = isCurrentlyDark ? 'light' : 'dark';
+    applyTheme(nextTheme);
+    localStorage.setItem('laya_theme', nextTheme);
 }
 
 function loadPersistedSettings() {
-    const savedPath = localStorage.getItem('laya_local_path') || './models/laya';
+    const savedPath = localStorage.getItem('laya_local_path') || './models/openvino';
     state.localPath = savedPath;
-    elements.inputLocalPath.value = savedPath;
-    elements.activePathText.textContent = savedPath;
+    if (elements.inputLocalPath) elements.inputLocalPath.value = savedPath;
+    if (elements.activePathText) elements.activePathText.textContent = savedPath;
 
     const savedOffline = localStorage.getItem('laya_force_offline') === 'true';
     state.forceOffline = savedOffline;
-    elements.chkForceOffline.checked = savedOffline;
-    elements.chkModalOffline.checked = savedOffline;
+    if (elements.chkForceOffline) elements.chkForceOffline.checked = savedOffline;
+    if (elements.chkModalOffline) elements.chkModalOffline.checked = savedOffline;
 }
 
 // ==============================================================================
@@ -170,53 +175,61 @@ function loadPersistedSettings() {
 async function fetchSystemStatus() {
     try {
         const res = await fetch('/api/status');
-        if (!res.ok) throw new Error('Không thể kết nối API status');
+        if (!res.ok) throw new Error('API status connection failed');
         const data = await res.json();
         
         state.hardware = data.hardware;
         
         // Update hardware badge
         const devName = data.hardware.cuda_available ? (data.hardware.device_name || 'CUDA') : 'CPU';
-        elements.hwBadge.textContent = `💻 Hardware: ${devName}`;
+        const hwVal = elements.hwBadge?.querySelector('.chip-value');
+        if (hwVal) hwVal.textContent = devName;
+        else if (elements.hwBadge) elements.hwBadge.textContent = devName;
 
         // Update local models status
         const local = data.local_model_status;
+        const sourceVal = elements.sourceBadge?.querySelector('.chip-value');
         if (local && local.exists && (local.checkpoints.english || local.checkpoints.multilingual)) {
-            elements.sourceBadge.textContent = `🔒 Local Offline (${local.total_size_mb} MB)`;
-            elements.sourceBadge.classList.add('badge-pulse');
+            const label = `LOCAL (${local.total_size_mb} MB)`;
+            if (sourceVal) sourceVal.textContent = label;
+            else if (elements.sourceBadge) elements.sourceBadge.textContent = label;
         } else {
-            elements.sourceBadge.textContent = `🌐 HF Hub (${data.default_hub_repo})`;
+            const label = `HF HUB (${data.default_hub_repo})`;
+            if (sourceVal) sourceVal.textContent = label;
+            else if (elements.sourceBadge) elements.sourceBadge.textContent = label;
         }
     } catch (err) {
-        elements.sourceBadge.textContent = `⚠️ Lỗi kết nối API`;
-        console.error('Lỗi khi fetch status:', err);
+        const sourceVal = elements.sourceBadge?.querySelector('.chip-value');
+        if (sourceVal) sourceVal.textContent = 'UNAVAILABLE';
+        else if (elements.sourceBadge) elements.sourceBadge.textContent = 'UNAVAILABLE';
+        console.error('System status fetch failed:', err);
     }
 }
 
 async function fetchPresets() {
     try {
         const res = await fetch('/api/presets');
-        if (!res.ok) throw new Error('Lỗi tải presets');
+        if (!res.ok) throw new Error('Failed to load presets');
         state.presets = await res.json();
         renderPresetsBar();
-        // Load the first preset by default
         if (state.presets.length > 0) {
             applyPreset(state.presets[0].id);
         }
     } catch (err) {
-        showToast('Không thể tải danh sách mẫu tác vụ: ' + err.message, 'error');
+        showToast('Failed to load presets: ' + err.message, 'error');
     }
 }
 
 function renderPresetsBar() {
+    if (!elements.presetsList) return;
     elements.presetsList.innerHTML = '';
     state.presets.forEach(p => {
         const btn = document.createElement('button');
-        btn.className = `preset-chip ${p.id === state.currentPresetId ? 'active' : ''}`;
+        btn.className = `preset-pill ${p.id === state.currentPresetId ? 'active' : ''}`;
         btn.dataset.presetId = p.id;
         btn.innerHTML = `
-            <span>${p.name}</span>
-            <span class="chip-badge">${p.badge}</span>
+            <span>${escapeHtml(p.name)}</span>
+            <span class="preset-tag">${escapeHtml(p.badge)}</span>
         `;
         btn.addEventListener('click', () => applyPreset(p.id));
         elements.presetsList.appendChild(btn);
@@ -244,7 +257,6 @@ function applyPreset(presetId) {
     state.questions = JSON.parse(JSON.stringify(preset.questions));
     elements.rawQuestionsInput.value = JSON.stringify(state.questions, null, 2);
     renderVisualQuestions();
-    showToast(`Đã nạp mẫu tác vụ: "${preset.name}"`, 'info');
 }
 
 // ==============================================================================
@@ -267,7 +279,7 @@ function updateStateStats() {
     const text = elements.stateInput.value || '';
     const chars = text.length;
     const lines = text.split('\n').length;
-    elements.stateStats.textContent = `${chars.toLocaleString()} ký tự · ${lines} dòng`;
+    elements.stateStats.textContent = `${chars.toLocaleString()} chars · ${lines} lines`;
 }
 
 function formatJsonState() {
@@ -275,9 +287,9 @@ function formatJsonState() {
         const parsed = JSON.parse(elements.stateInput.value);
         elements.stateInput.value = JSON.stringify(parsed, null, 2);
         updateStateStats();
-        showToast('Đã định dạng JSON chuẩn!', 'success');
+        showToast('JSON formatted', 'success');
     } catch (e) {
-        showToast('Văn bản không phải JSON hợp lệ: ' + e.message, 'error');
+        showToast('Invalid JSON: ' + e.message, 'error');
     }
 }
 
@@ -296,7 +308,6 @@ function setQuestionsMode(mode) {
         elements.btnModeVisual.classList.remove('active');
         elements.rawJsonView.classList.remove('hidden');
         elements.visualBuilderView.classList.add('hidden');
-        // Update raw JSON from current state
         elements.rawQuestionsInput.value = JSON.stringify(state.questions, null, 2);
     }
 }
@@ -307,8 +318,8 @@ function renderVisualQuestions() {
 
     if (qIds.length === 0) {
         elements.questionsList.innerHTML = `
-            <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">
-                Chưa có câu hỏi nào. Nhấn "+ Thêm câu hỏi mới" bên dưới.
+            <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 12px;">
+                No questions defined. Click "Add Decision Question" below.
             </div>
         `;
         return;
@@ -323,52 +334,46 @@ function renderVisualQuestions() {
 
 function createQuestionCardElement(qid, q) {
     const card = document.createElement('div');
-    card.className = 'question-card';
+    card.className = 'q-card';
     card.dataset.qid = qid;
 
-    // Header with key, type selector and delete
     const header = document.createElement('div');
-    header.className = 'q-header';
+    header.className = 'q-card-header';
     header.innerHTML = `
-        <div class="q-id-group">
-            <input type="text" class="q-key-input" value="${escapeHtml(qid)}" title="Tên định danh câu hỏi">
-            <select class="q-type-select">
-                <option value="choice" ${q.type === 'choice' ? 'selected' : ''}>Choice (Phân loại)</option>
-                <option value="score" ${q.type === 'score' ? 'selected' : ''}>Score (Chấm điểm)</option>
-                <option value="noul" ${q.type === 'noul' ? 'selected' : ''}>Noul (Xác suất Đúng/Sai)</option>
-            </select>
-        </div>
-        <button class="btn-remove-q" title="Xóa câu hỏi này">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <input type="text" class="q-key-input" value="${escapeHtml(qid)}" title="Question identifier key">
+        <select class="select-input q-type-select" style="width: auto; padding: 3px 6px; font-size: 11px;">
+            <option value="choice" ${q.type === 'choice' ? 'selected' : ''}>Choice</option>
+            <option value="score" ${q.type === 'score' ? 'selected' : ''}>Score</option>
+            <option value="noul" ${q.type === 'noul' ? 'selected' : ''}>Boolean</option>
+        </select>
+        <button class="btn-icon-del" title="Delete question">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
         </button>
     `;
 
-    // Instruction field
     const instructionInput = document.createElement('input');
     instructionInput.type = 'text';
-    instructionInput.className = 'q-instruction-input';
+    instructionInput.className = 'q-inst-input';
     instructionInput.value = q.instructions || '';
-    instructionInput.placeholder = 'Nhập câu hỏi hoặc chỉ dẫn đánh giá (instructions)...';
+    instructionInput.placeholder = 'Enter evaluation prompt or instruction...';
 
-    // Criteria Container
     const criteriaBox = document.createElement('div');
-    criteriaBox.className = 'q-criteria-box';
+    criteriaBox.className = 'criteria-box';
     renderCriteriaBoxContent(criteriaBox, qid, q);
 
     card.appendChild(header);
     card.appendChild(instructionInput);
     card.appendChild(criteriaBox);
 
-    // Event Listeners for this card
     const keyInput = header.querySelector('.q-key-input');
     keyInput.addEventListener('change', (e) => {
         const newKey = e.target.value.trim().replace(/\s+/g, '_');
         if (!newKey || newKey === qid) return;
         if (state.questions[newKey]) {
-            showToast(`Key "${newKey}" đã tồn tại!`, 'error');
+            showToast(`Key "${newKey}" already exists`, 'error');
             e.target.value = qid;
             return;
         }
@@ -382,9 +387,9 @@ function createQuestionCardElement(qid, q) {
         const newType = e.target.value;
         q.type = newType;
         if (newType === 'choice' && (!q.criteria || Array.isArray(q.criteria))) {
-            q.criteria = { "option_a": "Mô tả lựa chọn A", "option_b": "Mô tả lựa chọn B" };
+            q.criteria = { "option_a": "Description for option A", "option_b": "Description for option B" };
         } else if (newType === 'score' && (!q.criteria || !Array.isArray(q.criteria))) {
-            q.criteria = ["thấp (low)", "trung bình (medium)", "cao (high)"];
+            q.criteria = ["low", "medium", "high"];
         } else if (newType === 'noul') {
             delete q.criteria;
         }
@@ -395,7 +400,7 @@ function createQuestionCardElement(qid, q) {
         q.instructions = e.target.value;
     });
 
-    const btnRemove = header.querySelector('.btn-remove-q');
+    const btnRemove = header.querySelector('.btn-icon-del');
     btnRemove.addEventListener('click', () => {
         delete state.questions[qid];
         renderVisualQuestions();
@@ -409,21 +414,19 @@ function renderCriteriaBoxContent(box, qid, q) {
 
     if (q.type === 'choice') {
         const title = document.createElement('div');
-        title.className = 'criteria-title';
-        title.textContent = 'Danh sách các lựa chọn (Options):';
+        title.className = 'dist-heading';
+        title.style.marginBottom = '6px';
+        title.textContent = 'CATEGORICAL CANDIDATES';
         box.appendChild(title);
-
-        const list = document.createElement('div');
-        list.className = 'criteria-list';
 
         const crit = q.criteria || {};
         Object.entries(crit).forEach(([optKey, optDesc]) => {
             const row = document.createElement('div');
-            row.className = 'criteria-row';
+            row.className = 'crit-row';
             row.innerHTML = `
-                <input type="text" class="crit-key" value="${escapeHtml(optKey)}" placeholder="Mã lựa chọn">
-                <input type="text" class="crit-desc" value="${escapeHtml(optDesc)}" placeholder="Mô tả / tiêu chí lựa chọn">
-                <button class="btn-crit-del" title="Xóa lựa chọn">&times;</button>
+                <input type="text" class="crit-key" value="${escapeHtml(optKey)}" placeholder="Key">
+                <input type="text" class="crit-desc" value="${escapeHtml(optDesc)}" placeholder="Description / criteria">
+                <button class="btn-crit-del" title="Remove candidate">&times;</button>
             `;
 
             const kInput = row.querySelector('.crit-key');
@@ -445,38 +448,35 @@ function renderCriteriaBoxContent(box, qid, q) {
                 renderCriteriaBoxContent(box, qid, q);
             });
 
-            list.appendChild(row);
+            box.appendChild(row);
         });
 
         const btnAdd = document.createElement('button');
         btnAdd.className = 'btn-add-crit';
-        btnAdd.textContent = '+ Thêm Option';
+        btnAdd.textContent = '+ Add Candidate';
         btnAdd.addEventListener('click', () => {
             const newIndex = Object.keys(crit).length + 1;
-            crit[`option_${newIndex}`] = `Mô tả lựa chọn ${newIndex}`;
+            crit[`option_${newIndex}`] = `Option ${newIndex} definition`;
             renderCriteriaBoxContent(box, qid, q);
         });
 
-        box.appendChild(list);
         box.appendChild(btnAdd);
 
     } else if (q.type === 'score') {
         const title = document.createElement('div');
-        title.className = 'criteria-title';
-        title.textContent = 'Thang bậc điểm (Ordered Rubric):';
+        title.className = 'dist-heading';
+        title.style.marginBottom = '6px';
+        title.textContent = 'ORDERED RUBRIC LEVELS';
         box.appendChild(title);
-
-        const list = document.createElement('div');
-        list.className = 'criteria-list';
 
         const crit = Array.isArray(q.criteria) ? q.criteria : [];
         crit.forEach((lvl, idx) => {
             const row = document.createElement('div');
-            row.className = 'criteria-row';
+            row.className = 'crit-row';
             row.innerHTML = `
-                <span style="font-family: var(--font-mono); font-size: 11px; width: 24px; color: var(--text-muted);">${idx}:</span>
-                <input type="text" class="crit-desc" value="${escapeHtml(lvl)}" placeholder="Mô tả mức điểm ${idx}">
-                <button class="btn-crit-del" title="Xóa mức này">&times;</button>
+                <span style="font-family: var(--font-mono); font-size: 11px; width: 20px; color: var(--text-muted);">${idx}:</span>
+                <input type="text" class="crit-desc" value="${escapeHtml(lvl)}" placeholder="Level ${idx} rubric">
+                <button class="btn-crit-del" title="Remove level">&times;</button>
             `;
 
             row.querySelector('.crit-desc').addEventListener('input', (e) => {
@@ -488,31 +488,30 @@ function renderCriteriaBoxContent(box, qid, q) {
                 renderCriteriaBoxContent(box, qid, q);
             });
 
-            list.appendChild(row);
+            box.appendChild(row);
         });
 
         const btnAdd = document.createElement('button');
         btnAdd.className = 'btn-add-crit';
-        btnAdd.textContent = '+ Thêm mức điểm';
+        btnAdd.textContent = '+ Add Score Level';
         btnAdd.addEventListener('click', () => {
-            crit.push(`mức điểm ${crit.length}`);
+            crit.push(`Level ${crit.length} description`);
             renderCriteriaBoxContent(box, qid, q);
         });
 
-        box.appendChild(list);
         box.appendChild(btnAdd);
 
     } else if (q.type === 'noul') {
         const hint = document.createElement('div');
         hint.style.fontSize = '11.5px';
         hint.style.color = 'var(--text-muted)';
-        hint.innerHTML = '⚖️ <strong>Noul Primitive:</strong> Đánh giá xác suất mệnh đề là Đúng (Yes/True: <code>0.0 → 1.0</code>). Không cần khai báo criteria.';
+        hint.innerHTML = '<strong>Boolean Primitive:</strong> Evaluates condition probability (0.0 to 1.0). No criteria definition required.';
         box.appendChild(hint);
     }
 }
 
 function addNewQuestion() {
-    const baseName = "new_question";
+    const baseName = "decision_eval";
     let counter = 1;
     let key = `${baseName}_${counter}`;
     while (state.questions[key]) {
@@ -522,29 +521,29 @@ function addNewQuestion() {
 
     state.questions[key] = {
         type: "choice",
-        instructions: "Đánh giá lựa chọn phù hợp nhất?",
+        instructions: "Evaluate the optimal choice for the given input state",
         criteria: {
-            "yes": "Đồng ý / Phù hợp",
-            "no": "Không đồng ý / Không phù hợp"
+            "yes": "Applicable / Optimal",
+            "no": "Inapplicable / Reject"
         }
     };
 
     renderVisualQuestions();
-    showToast(`Đã thêm câu hỏi: ${key}`, 'info');
+    showToast(`Added question: ${key}`, 'info');
 }
 
 function syncFromRawJson() {
     try {
         const parsed = JSON.parse(elements.rawQuestionsInput.value);
         if (typeof parsed !== 'object' || Array.isArray(parsed)) {
-            throw new Error('Questions phải là một JSON Object (Dictionary).');
+            throw new Error('Questions must be a JSON object (dictionary)');
         }
         state.questions = parsed;
         renderVisualQuestions();
         setQuestionsMode('visual');
-        showToast('Đã đồng bộ sang Visual Builder thành công!', 'success');
+        showToast('Synced to Visual Builder', 'success');
     } catch (e) {
-        showToast('Lỗi JSON: ' + e.message, 'error');
+        showToast('JSON Error: ' + e.message, 'error');
     }
 }
 
@@ -552,37 +551,34 @@ function syncFromRawJson() {
 // Execution & Prediction Logic
 // ==============================================================================
 async function executeDecision() {
-    // Parse state
     let statePayload = elements.stateInput.value.trim();
     if (state.stateMode === 'json') {
         try {
             statePayload = JSON.parse(statePayload);
         } catch (e) {
-            showToast('Lỗi: Định dạng Input State JSON không hợp lệ!', 'error');
+            showToast('Invalid input state JSON format', 'error');
             return;
         }
     }
 
-    // Sync questions
     if (state.questionsMode === 'raw') {
         try {
             state.questions = JSON.parse(elements.rawQuestionsInput.value);
         } catch (e) {
-            showToast('Lỗi: Định dạng Questions JSON không hợp lệ!', 'error');
+            showToast('Invalid questions JSON schema', 'error');
             return;
         }
     }
 
     if (Object.keys(state.questions).length === 0) {
-        showToast('Vui lòng thêm ít nhất một câu hỏi!', 'error');
+        showToast('Please specify at least one decision question', 'error');
         return;
     }
 
-    // Prepare UI for loading
     elements.btnExecute.disabled = true;
     elements.btnExecute.innerHTML = `
         <span class="pulse-dot"></span>
-        <span>ĐANG TÍNH TOÁN FORWARD PASS...</span>
+        <span>EVALUATING FORWARD PASS...</span>
     `;
     elements.metricLatency.textContent = '...';
 
@@ -608,28 +604,27 @@ async function executeDecision() {
 
         if (!response.ok) {
             const errData = await response.json();
-            throw new Error(errData.detail || 'Lỗi server khi thực thi');
+            throw new Error(errData.detail || 'Server execution error');
         }
 
         const result = await response.json();
         state.lastResult = result;
 
-        // Render Results
         renderDecisionResults(result);
         updateCodeSnippets(payload, result);
-        showToast(`Hoàn tất trong ${result.elapsed_ms} ms!`, 'success');
+        showToast(`Inference completed in ${result.elapsed_ms} ms`, 'success');
 
     } catch (err) {
-        showToast(`Thất bại: ${err.message}`, 'error');
+        showToast(`Execution failed: ${err.message}`, 'error');
         console.error(err);
     } finally {
         elements.btnExecute.disabled = false;
         elements.btnExecute.innerHTML = `
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
             </svg>
-            <span>THỰC THI QUYẾT ĐỊNH (SINGLE PASS)</span>
-            <kbd class="kbd-shortcut">Ctrl+Enter</kbd>
+            <span>RUN DECISION PASS</span>
+            <span class="key-shortcut">Ctrl+Enter</span>
         `;
     }
 }
@@ -638,11 +633,10 @@ function renderDecisionResults(res) {
     elements.emptyState.classList.add('hidden');
     elements.decisionsList.classList.remove('hidden');
 
-    // Update Metrics Strip
-    elements.metricLatency.textContent = `⚡ ${res.elapsed_ms} ms`;
+    elements.metricLatency.textContent = `${res.elapsed_ms} ms`;
     elements.metricModel.textContent = res.model_used || res.model_mode;
-    elements.metricCount.textContent = `${res.questions_count} quyết định / 1 pass`;
-    elements.metricWeights.textContent = res.is_local_weights ? '🔒 Local Weights' : '🌐 Hugging Face Hub';
+    elements.metricCount.textContent = `${res.questions_count} / pass`;
+    elements.metricWeights.textContent = res.is_local_weights ? 'Local (Air-Gapped)' : 'Hugging Face Hub';
 
     elements.decisionsList.innerHTML = '';
     const answers = res.answers || {};
@@ -659,14 +653,12 @@ function createDecisionResultCard(qid, ans) {
 
     const qDef = state.questions[qid] || {};
     const qType = ans.type || qDef.type || 'unknown';
-    const instructions = qDef.instructions || 'Quyết định đánh giá';
+    const instructions = qDef.instructions || 'Decision assessment';
 
-    // Format Confidence
     const confVal = ans.answer_confidence !== undefined ? ans.answer_confidence : (ans.confidence || 0);
     const confPct = Math.round(confVal * 1000) / 10;
     const confClass = confPct >= 80 ? 'conf-high' : (confPct >= 50 ? 'conf-mid' : 'conf-low');
 
-    // Winner Verdict & Details
     let verdictHtml = '';
     let probBarsHtml = '';
 
@@ -675,28 +667,27 @@ function createDecisionResultCard(qid, ans) {
         const probs = ans.probabilities || {};
 
         verdictHtml = `
-            <div class="verdict-main">
-                <span class="verdict-title">Lựa chọn tối ưu (Choice)</span>
-                <span class="verdict-pill is-choice">🎯 ${escapeHtml(choice)}</span>
+            <div class="verdict-info">
+                <span class="verdict-heading">OPTIMAL CHOICE</span>
+                <span class="verdict-tag">${escapeHtml(choice)}</span>
             </div>
-            <div class="conf-box">
-                <span class="conf-label">Độ tin cậy chuẩn hóa (ECE)</span>
+            <div class="conf-indicator">
+                <span class="conf-meta">CONFIDENCE</span>
                 <span class="conf-score ${confClass}">${confPct}%</span>
             </div>
         `;
 
-        // Build probability bars for all options
         probBarsHtml = Object.entries(probs).map(([k, p]) => {
             const isWinner = k === choice;
             const pct = Math.round(p * 1000) / 10;
             return `
-                <div class="prob-meter-row">
-                    <div class="meter-meta">
-                        <span class="meter-key ${isWinner ? 'winner' : ''}">${isWinner ? '✓ ' : ''}${escapeHtml(k)}</span>
-                        <span class="meter-pct">${pct}%</span>
+                <div class="meter-row">
+                    <div class="meter-labels">
+                        <span class="meter-name ${isWinner ? 'winner' : ''}">${escapeHtml(k)}</span>
+                        <span class="meter-percent">${pct}%</span>
                     </div>
-                    <div class="meter-track">
-                        <div class="meter-fill ${isWinner ? 'winner' : ''}" style="width: ${pct}%"></div>
+                    <div class="meter-bar">
+                        <div class="meter-progress ${isWinner ? 'winner' : ''}" style="width: ${pct}%"></div>
                     </div>
                 </div>
             `;
@@ -707,17 +698,16 @@ function createDecisionResultCard(qid, ans) {
         const legend = ans.legend || {};
         const probs = ans.probabilities || {};
 
-        // Find nearest integer level for legend description
         const roundLevel = Math.round(expScore).toString();
-        const levelLabel = legend[roundLevel] || `Mức ${expScore}`;
+        const levelLabel = legend[roundLevel] || `Level ${expScore}`;
 
         verdictHtml = `
-            <div class="verdict-main">
-                <span class="verdict-title">Điểm số kỳ vọng (Expected Score)</span>
-                <span class="verdict-pill is-score">📊 ${expScore} <small style="font-size: 12px; font-weight: normal; opacity: 0.85;">(${escapeHtml(levelLabel)})</small></span>
+            <div class="verdict-info">
+                <span class="verdict-heading">EXPECTED SCORE</span>
+                <span class="verdict-tag">${expScore} <small style="font-size: 11.5px; font-weight: normal; color: var(--text-muted);">(${escapeHtml(levelLabel)})</small></span>
             </div>
-            <div class="conf-box">
-                <span class="conf-label">Độ tin cậy</span>
+            <div class="conf-indicator">
+                <span class="conf-meta">CONFIDENCE</span>
                 <span class="conf-score ${confClass}">${confPct}%</span>
             </div>
         `;
@@ -727,13 +717,13 @@ function createDecisionResultCard(qid, ans) {
             const pct = Math.round(p * 1000) / 10;
             const isMax = p === Math.max(...Object.values(probs));
             return `
-                <div class="prob-meter-row">
-                    <div class="meter-meta">
-                        <span class="meter-key ${isMax ? 'winner' : ''}">[${lvl}] ${escapeHtml(label)}</span>
-                        <span class="meter-pct">${pct}%</span>
+                <div class="meter-row">
+                    <div class="meter-labels">
+                        <span class="meter-name ${isMax ? 'winner' : ''}">[${lvl}] ${escapeHtml(label)}</span>
+                        <span class="meter-percent">${pct}%</span>
                     </div>
-                    <div class="meter-track">
-                        <div class="meter-fill ${isMax ? 'winner' : ''}" style="width: ${pct}%"></div>
+                    <div class="meter-bar">
+                        <div class="meter-progress ${isMax ? 'winner' : ''}" style="width: ${pct}%"></div>
                     </div>
                 </div>
             `;
@@ -746,57 +736,53 @@ function createDecisionResultCard(qid, ans) {
         const pFalsePct = Math.round((1 - pTrue) * 1000) / 10;
 
         verdictHtml = `
-            <div class="verdict-main">
-                <span class="verdict-title">Xác suất điều kiện (P(True))</span>
-                <span class="verdict-pill ${isTrue ? 'is-positive' : 'is-negative'}">
-                    ${isTrue ? '✅ ĐÚNG (YES)' : '❌ SAI (NO)'}
-                    <small style="font-size: 13px; font-weight: normal; margin-left: 6px;">P = ${pTrue}</small>
+            <div class="verdict-info">
+                <span class="verdict-heading">CONDITION VERDICT (P ≥ 0.5)</span>
+                <span class="verdict-tag ${isTrue ? 'positive' : 'negative'}">
+                    ${isTrue ? 'TRUE' : 'FALSE'}
+                    <small style="font-size: 11.5px; font-weight: normal; color: var(--text-muted); margin-left: 6px;">(P = ${pTrue})</small>
                 </span>
             </div>
-            <div class="conf-box">
-                <span class="conf-label">Calibrated Confidence</span>
+            <div class="conf-indicator">
+                <span class="conf-meta">CALIBRATED PROB</span>
                 <span class="conf-score ${confClass}">${confPct}%</span>
             </div>
         `;
 
         probBarsHtml = `
-            <div class="prob-meter-row">
-                <div class="meter-meta">
-                    <span class="meter-key ${isTrue ? 'winner' : ''}">Đúng (True / Yes)</span>
-                    <span class="meter-pct">${pTruePct}%</span>
+            <div class="meter-row">
+                <div class="meter-labels">
+                    <span class="meter-name ${isTrue ? 'winner' : ''}">True</span>
+                    <span class="meter-percent">${pTruePct}%</span>
                 </div>
-                <div class="meter-track">
-                    <div class="meter-fill ${isTrue ? 'winner' : ''}" style="width: ${pTruePct}%"></div>
+                <div class="meter-bar">
+                    <div class="meter-progress ${isTrue ? 'winner' : ''}" style="width: ${pTruePct}%"></div>
                 </div>
             </div>
-            <div class="prob-meter-row">
-                <div class="meter-meta">
-                    <span class="meter-key ${!isTrue ? 'winner' : ''}">Sai (False / No)</span>
-                    <span class="meter-pct">${pFalsePct}%</span>
+            <div class="meter-row">
+                <div class="meter-labels">
+                    <span class="meter-name ${!isTrue ? 'winner' : ''}">False</span>
+                    <span class="meter-percent">${pFalsePct}%</span>
                 </div>
-                <div class="meter-track">
-                    <div class="meter-fill ${!isTrue ? 'winner' : ''}" style="width: ${pFalsePct}%"></div>
+                <div class="meter-bar">
+                    <div class="meter-progress ${!isTrue ? 'winner' : ''}" style="width: ${pFalsePct}%"></div>
                 </div>
             </div>
         `;
     }
 
     card.innerHTML = `
-        <div class="card-top">
-            <span class="card-qid">${escapeHtml(qid)}</span>
-            <div class="card-badges">
-                <span class="qtype-pill qtype-${qType}">${qType}</span>
-            </div>
+        <div class="decision-card-head">
+            <span class="qid-text">${escapeHtml(qid)}</span>
+            <span class="qtype-pill ${qType}">${qType}</span>
         </div>
-        <div class="card-instruction">"${escapeHtml(instructions)}"</div>
-        <div class="verdict-row">
+        <div class="decision-prompt">${escapeHtml(instructions)}</div>
+        <div class="verdict-box">
             ${verdictHtml}
         </div>
-        <div class="prob-section">
-            <div class="prob-header">Phân bố xác suất chuẩn hóa (Probability Distribution)</div>
-            <div class="prob-meters">
-                ${probBarsHtml}
-            </div>
+        <div class="distribution-box">
+            <span class="dist-heading">PROBABILITY DISTRIBUTION</span>
+            ${probBarsHtml}
         </div>
     `;
 
@@ -823,30 +809,30 @@ async function updateCodeSnippets(reqPayload, result) {
             renderSnippetTab();
         }
     } catch (e) {
-        console.error('Lỗi sinh code snippet:', e);
+        console.error('Code snippet generation failed:', e);
     }
 }
 
 function renderSnippetTab() {
-    if (!state.cachedSnippets) return;
+    if (!state.cachedSnippets || !elements.snippetCode) return;
     elements.snippetCode.textContent = state.cachedSnippets[state.activeSnippetTab] || '';
 }
 
 function setSnippetTab(tab) {
     state.activeSnippetTab = tab;
-    elements.tabSnippetPy.classList.toggle('active', tab === 'py');
-    elements.tabSnippetCurl.classList.toggle('active', tab === 'curl');
-    elements.tabSnippetJson.classList.toggle('active', tab === 'json');
+    elements.tabSnippetPy?.classList.toggle('active', tab === 'py');
+    elements.tabSnippetCurl?.classList.toggle('active', tab === 'curl');
+    elements.tabSnippetJson?.classList.toggle('active', tab === 'json');
     renderSnippetTab();
 }
 
 function copyCodeSnippet() {
-    const text = elements.snippetCode.textContent;
+    const text = elements.snippetCode?.textContent;
     if (!text || text.startsWith('//')) return;
     navigator.clipboard.writeText(text).then(() => {
-        showToast('Đã copy đoạn mã vào Clipboard!', 'success');
+        showToast('Copied code snippet to clipboard', 'success');
     }).catch(e => {
-        showToast('Không thể copy: ' + e.message, 'error');
+        showToast('Clipboard copy failed: ' + e.message, 'error');
     });
 }
 
@@ -866,7 +852,7 @@ function closeSettingsModal() {
 
 async function inspectCurrentPath(path) {
     elements.btnValidateLocalPath.disabled = true;
-    elements.btnValidateLocalPath.textContent = 'Đang kiểm tra...';
+    elements.btnValidateLocalPath.textContent = 'Inspecting...';
 
     try {
         const res = await fetch('/api/inspect-path', {
@@ -876,41 +862,40 @@ async function inspectCurrentPath(path) {
         });
         const data = await res.json();
 
-        // Update UI
-        elements.stFolderExists.className = `status-badge ${data.exists ? 'badge-ok' : 'badge-missing'}`;
-        elements.stFolderExists.textContent = data.exists ? 'Tồn tại' : 'Không tìm thấy';
+        elements.stFolderExists.className = `badge-status ${data.exists ? 'success' : 'fail'}`;
+        elements.stFolderExists.textContent = data.exists ? 'Available' : 'Missing';
 
-        elements.stCkptEnglish.className = `status-badge ${data.checkpoints.english ? 'badge-ok' : 'badge-missing'}`;
-        elements.stCkptEnglish.textContent = data.checkpoints.english ? 'Sẵn sàng' : 'Chưa có';
+        elements.stCkptEnglish.className = `badge-status ${data.checkpoints.english ? 'success' : 'fail'}`;
+        elements.stCkptEnglish.textContent = data.checkpoints.english ? 'Ready' : 'Not Found';
 
-        elements.stCkptMulti.className = `status-badge ${data.checkpoints.multilingual ? 'badge-ok' : 'badge-missing'}`;
-        elements.stCkptMulti.textContent = data.checkpoints.multilingual ? 'Sẵn sàng' : 'Chưa có';
+        elements.stCkptMulti.className = `badge-status ${data.checkpoints.multilingual ? 'success' : 'fail'}`;
+        elements.stCkptMulti.textContent = data.checkpoints.multilingual ? 'Ready' : 'Not Found';
 
-        elements.stCkptTyped.className = `status-badge ${data.checkpoints['typed-decisions'] ? 'badge-ok' : 'badge-missing'}`;
-        elements.stCkptTyped.textContent = data.checkpoints['typed-decisions'] ? 'Sẵn sàng' : 'Chưa có';
+        elements.stCkptTyped.className = `badge-status ${data.checkpoints['typed-decisions'] ? 'success' : 'fail'}`;
+        elements.stCkptTyped.textContent = data.checkpoints['typed-decisions'] ? 'Ready' : 'Not Found';
 
         elements.stTotalSize.textContent = `${data.total_size_mb} MB`;
 
         if (!data.exists || !data.checkpoints.english) {
             elements.missingFilesAlert.classList.remove('hidden');
             elements.missingFilesAlert.innerHTML = `
-                ⚠️ <strong>Chưa có đủ tệp model offline:</strong><br>
-                Hãy chạy lệnh: <code>python download_models.py --output-dir "${path}" --checkpoint all</code>
+                <strong>Offline weights incomplete:</strong><br>
+                Run download script: <code>python download_models.py --output-dir "${escapeHtml(path)}" --checkpoint all</code>
             `;
         } else {
             elements.missingFilesAlert.classList.add('hidden');
         }
 
     } catch (e) {
-        showToast('Lỗi khi kiểm tra đường dẫn: ' + e.message, 'error');
+        showToast('Path inspection failed: ' + e.message, 'error');
     } finally {
         elements.btnValidateLocalPath.disabled = false;
-        elements.btnValidateLocalPath.textContent = 'Kiểm tra đường dẫn';
+        elements.btnValidateLocalPath.textContent = 'Inspect Path';
     }
 }
 
 function saveSettings() {
-    const newPath = elements.inputLocalPath.value.trim() || './models/laya';
+    const newPath = elements.inputLocalPath.value.trim() || './models/openvino';
     const newOffline = elements.chkModalOffline.checked;
 
     state.localPath = newPath;
@@ -923,7 +908,7 @@ function saveSettings() {
     elements.chkForceOffline.checked = newOffline;
 
     closeSettingsModal();
-    showToast('Đã lưu cấu hình Local & Offline!', 'success');
+    showToast('Saved local configuration', 'success');
     fetchSystemStatus();
 }
 
@@ -932,22 +917,22 @@ function saveSettings() {
 // ==============================================================================
 function setupEventListeners() {
     // Theme
-    elements.btnTheme.addEventListener('click', toggleTheme);
+    elements.btnTheme?.addEventListener('click', toggleTheme);
 
     // State Input Tabs
-    elements.btnStateJson.addEventListener('click', () => setStateMode('json'));
-    elements.btnStateText.addEventListener('click', () => setStateMode('text'));
-    elements.stateInput.addEventListener('input', updateStateStats);
-    elements.btnFormatJson.addEventListener('click', formatJsonState);
+    elements.btnStateJson?.addEventListener('click', () => setStateMode('json'));
+    elements.btnStateText?.addEventListener('click', () => setStateMode('text'));
+    elements.stateInput?.addEventListener('input', updateStateStats);
+    elements.btnFormatJson?.addEventListener('click', formatJsonState);
 
     // Questions Tabs
-    elements.btnModeVisual.addEventListener('click', () => setQuestionsMode('visual'));
-    elements.btnModeRawJson.addEventListener('click', () => setQuestionsMode('raw'));
-    elements.btnAddQuestion.addEventListener('click', addNewQuestion);
-    elements.btnSyncVisual.addEventListener('click', syncFromRawJson);
+    elements.btnModeVisual?.addEventListener('click', () => setQuestionsMode('visual'));
+    elements.btnModeRawJson?.addEventListener('click', () => setQuestionsMode('raw'));
+    elements.btnAddQuestion?.addEventListener('click', addNewQuestion);
+    elements.btnSyncVisual?.addEventListener('click', syncFromRawJson);
 
     // Execution
-    elements.btnExecute.addEventListener('click', executeDecision);
+    elements.btnExecute?.addEventListener('click', executeDecision);
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             e.preventDefault();
@@ -956,35 +941,37 @@ function setupEventListeners() {
     });
 
     // Backend toggle
-    elements.backendSelect.addEventListener('change', (e) => {
+    elements.backendSelect?.addEventListener('change', (e) => {
         const isOv = e.target.value === 'openvino';
-        elements.precisionField.style.display = isOv ? 'flex' : 'none';
-        showToast(isOv ? 'Đã kích hoạt OpenVINO Runtime (Intel AMX/VNNI)' : 'Đã chuyển sang PyTorch Engine', 'info');
+        if (elements.precisionField) {
+            elements.precisionField.style.display = isOv ? 'flex' : 'none';
+        }
+        showToast(isOv ? 'Intel OpenVINO Runtime active (AMX/VNNI)' : 'PyTorch CPU Engine active', 'info');
     });
 
     // Snippet tabs
-    elements.tabSnippetPy.addEventListener('click', () => setSnippetTab('py'));
-    elements.tabSnippetCurl.addEventListener('click', () => setSnippetTab('curl'));
-    elements.tabSnippetJson.addEventListener('click', () => setSnippetTab('json'));
-    elements.btnCopySnippet.addEventListener('click', copyCodeSnippet);
+    elements.tabSnippetPy?.addEventListener('click', () => setSnippetTab('py'));
+    elements.tabSnippetCurl?.addEventListener('click', () => setSnippetTab('curl'));
+    elements.tabSnippetJson?.addEventListener('click', () => setSnippetTab('json'));
+    elements.btnCopySnippet?.addEventListener('click', copyCodeSnippet);
 
     // Settings Modal
-    elements.btnSettings.addEventListener('click', openSettingsModal);
-    elements.btnCloseSettings.addEventListener('click', closeSettingsModal);
-    elements.btnCancelSettings.addEventListener('click', closeSettingsModal);
-    elements.btnSaveSettings.addEventListener('click', saveSettings);
-    elements.btnValidateLocalPath.addEventListener('click', () => inspectCurrentPath(elements.inputLocalPath.value.trim()));
+    elements.btnSettings?.addEventListener('click', openSettingsModal);
+    elements.btnCloseSettings?.addEventListener('click', closeSettingsModal);
+    elements.btnCancelSettings?.addEventListener('click', closeSettingsModal);
+    elements.btnSaveSettings?.addEventListener('click', saveSettings);
+    elements.btnValidateLocalPath?.addEventListener('click', () => inspectCurrentPath(elements.inputLocalPath.value.trim()));
 
-    elements.chkForceOffline.addEventListener('change', (e) => {
+    elements.chkForceOffline?.addEventListener('change', (e) => {
         state.forceOffline = e.target.checked;
         localStorage.setItem('laya_force_offline', state.forceOffline.toString());
-        showToast(state.forceOffline ? 'Đã BẬT chế độ bắt buộc Offline' : 'Đã TẮT chế độ bắt buộc Offline', 'info');
+        showToast(state.forceOffline ? 'Air-gapped mode active' : 'Air-gapped mode disabled', 'info');
     });
 
     // Help Modal
-    elements.btnHelp.addEventListener('click', () => elements.helpModal.classList.remove('hidden'));
-    elements.btnCloseHelp.addEventListener('click', () => elements.helpModal.classList.add('hidden'));
-    elements.btnCloseHelpFooter.addEventListener('click', () => elements.helpModal.classList.add('hidden'));
+    elements.btnHelp?.addEventListener('click', () => elements.helpModal?.classList.remove('hidden'));
+    elements.btnCloseHelp?.addEventListener('click', () => elements.helpModal?.classList.add('hidden'));
+    elements.btnCloseHelpFooter?.addEventListener('click', () => elements.helpModal?.classList.add('hidden'));
 
     // Modal click-outside
     window.addEventListener('click', (e) => {
